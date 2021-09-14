@@ -23,7 +23,7 @@ Then run `mix deps.get` in your shell to fetch the dependencies.
 
 In some testing scenarios there is no obvious way to ensure that asynchronous side effects have taken place without continuously checking for successful completion. For example, perhaps an assertion is needed on click data being asynchronously persisted to the database. It is not difficult to write a recursive function to handle this one-off, but there is a bit of ceremony involved.
 
-Additionally, perhaps it is desirable to configure the amount of delay prior to each check, the total number of attempts, a convention for handling exhausted retries, and a record of the history of each attempt.
+Additionally, perhaps it is desirable to configure the amount of delay prior to each check, the total number of attempts, a convention for handling exhausted retries, an easy way to inject callbacks, and a record of the history of each attempt.
 
 This simple package provides all that and more! Well, actually just that.
 
@@ -36,11 +36,13 @@ As mentioned above, suppose it is necessary to check the database for the most r
 ```elixir
 {:ok, click, waiter} = ExWaiter.await(fn ->
   case Clicks.most_recent() do
-    nil ->
-      {:error, nil}
-
     %Click{} = click ->
       {:ok, click}
+
+    nil ->
+      # This is a good place for a callback you might want to run each time the
+      # condition is unmet (e.g. flushing jobs).
+      {:error, nil}
   end
 end)
 ```

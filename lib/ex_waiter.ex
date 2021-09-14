@@ -100,6 +100,8 @@ defmodule ExWaiter do
     `{:error, value, %Waiter{}}` will be returned. (default: true)
   * `:num_attempts` - The number of attempts before retries are exhausted.
     (default: 5)
+
+  See example usage in the [tests](https://github.com/baldwindavid/ex_waiter/blob/main/test/ex_waiter_test.exs).
   """
 
   alias ExWaiter.Attempt

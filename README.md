@@ -79,3 +79,5 @@ This returns the aforementioned `Waiter` struct, which includes a recording of e
 * `:delay_before_fn` - takes a function that receives the `%Waiter{}` struct at that moment and returns a number of milliseconds to delay prior to performing the next attempt. The default function is `fn waiter -> waiter.attempt_num * 10 end`.
 * `:exception_on_retries_exhausted?` - a boolean dictating if an exception should be raised when retries have been exhausted. If `false`, a tuple with `{:error, value, %Waiter{}}` will be returned. (default: true)
 * `:num_attempts` - The number of attempts before retries are exhausted. (default: 5)
+
+See example usage in the [tests](https://github.com/baldwindavid/ex_waiter/blob/main/test/ex_waiter_test.exs).

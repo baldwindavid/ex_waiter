@@ -49,8 +49,8 @@ defmodule ExWaiter do
         {:ok, click}
 
       value ->
-      # This is a good place for a callback you might want to run each time the
-      # condition is unmet (e.g. flushing jobs).
+        # This is a good place for a callback you might want to run each time the
+        # condition is unmet (e.g. flushing jobs).
         {:error, value}
 
     end

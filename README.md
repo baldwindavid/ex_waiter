@@ -2,7 +2,8 @@
 
 Helper for waiting on asynchronous conditions to be met.
 
-Hexdocs found at [https://hexdocs.pm/ex_waiter](https://hexdocs.pm/ex_waiter).
+Hexdocs found at
+[https://hexdocs.pm/ex_waiter](https://hexdocs.pm/ex_waiter/ExWaiter.html).
 
 ## Installation
 
@@ -28,7 +29,7 @@ This simple package provides all that and more! Well, actually just that.
 
 ## A Walkthrough
 
-The package provides a single `await/2` function. This function requires an anonymous function that MUST return either `{:ok, value}` or `{:error, value}`. It can take additional options for setting the desired number of attempts, custom delay between attempts, and how to handle exhausted retries.
+The package provides a single `await/2` function. This function requires a function that MUST return either `{:ok, value}` or `{:error, value}`. It can take additional options for setting the desired number of attempts, custom delay between attempts, and how to handle exhausted retries.
 
 As mentioned above, suppose it is necessary to check the database for the most recently persisted click.
 

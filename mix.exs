@@ -8,7 +8,8 @@ defmodule ExWaiter.MixProject do
       description: "Helper for waiting on asynchronous conditions to be met.",
       elixir: "~> 1.12",
       start_permanent: Mix.env() == :prod,
-      deps: deps()
+      deps: deps(),
+      package: package()
     ]
   end
 

@@ -222,35 +222,13 @@ defmodule ExWaiter do
     Process.sleep(delay_before)
 
     case waiter.checker_fn.() do
-      {:ok, value} ->
-        waiter = record_attempt(waiter, true, value, delay_before)
-        {:ok, value, waiter}
-
-      :ok ->
-        waiter = record_attempt(waiter, true, nil, delay_before)
-        {:ok, nil, waiter}
-
-      true ->
-        waiter = record_attempt(waiter, true, nil, delay_before)
-        {:ok, nil, waiter}
-
-      {:error, value} ->
-        waiter
-        |> record_attempt(false, value, delay_before)
-        |> attempt()
-
-      :error ->
-        waiter
-        |> record_attempt(false, nil, delay_before)
-        |> attempt()
-
-      false ->
-        waiter
-        |> record_attempt(false, nil, delay_before)
-        |> attempt()
-
-      result ->
-        raise InvalidResult, result
+      {:ok, value} -> handle_successful_attempt(waiter, value, delay_before)
+      :ok -> handle_successful_attempt(waiter, nil, delay_before)
+      true -> handle_successful_attempt(waiter, nil, delay_before)
+      {:error, value} -> handle_failed_attempt(waiter, value, delay_before)
+      :error -> handle_failed_attempt(waiter, nil, delay_before)
+      false -> handle_failed_attempt(waiter, nil, delay_before)
+      result -> raise InvalidResult, result
     end
   end
 
@@ -258,7 +236,18 @@ defmodule ExWaiter do
     %{waiter | attempt_num: waiter.attempt_num + 1, attempts_left: waiter.attempts_left - 1}
   end
 
-  defp record_attempt(waiter, fulfilled?, value, delay_before) do
+  defp handle_successful_attempt(%Waiter{} = waiter, value, delay_before) do
+    waiter = record_attempt(waiter, true, value, delay_before)
+    {:ok, value, waiter}
+  end
+
+  defp handle_failed_attempt(%Waiter{} = waiter, value, delay_before) do
+    waiter
+    |> record_attempt(false, value, delay_before)
+    |> attempt()
+  end
+
+  defp record_attempt(%Waiter{} = waiter, fulfilled?, value, delay_before) do
     attempts =
       [
         %Attempt{

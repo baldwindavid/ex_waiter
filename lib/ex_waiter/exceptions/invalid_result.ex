@@ -6,17 +6,31 @@ defmodule ExWaiter.Exceptions.InvalidResult do
     msg = """
 
     Expected:
-    {:ok, term} or {:error, term}
+    {:ok, value}, :ok, or true for success
+    {:error, value}, :error, or false for failure
 
     Got:
     #{inspect(result)}
 
-    Example:
+    Examples:
 
-      wait_for(fn _waiter ->
+      Returning a tagged tuple ensures that the Project is returned
+      from await!/2.
+
+      %Project{name: name} = await!(fn ->
         case Projects.get(1) do
           %Project{} = project -> {:ok, project}
           value -> {:error, value}
+        end
+      end)
+
+      If you only care about whether an exception is raised, any of
+      :ok, :error, true, or false may be returned.
+
+      await!(fn ->
+        case Projects.get(1) do
+          %Project{} -> :ok # or true
+          _ -> :error # or false
         end
       end)
     """

@@ -4,10 +4,10 @@ defmodule ExWaiterTest do
   alias ExWaiter.Exceptions.InvalidResult
   alias ExWaiter.Exceptions.RetriesExhausted
 
-  # We want to simulate a series of queries and stub out the expected values upon
-  # each successive attempt. This store takes an ordered list of expected return
-  # values and a starting index of 0. Every time it is queried, it grabs the value
-  # at the current index and increments the index.
+  # We want to simulate a series of queries and stub out the expected
+  # values upon each successive attempt. This store takes an ordered list
+  # of expected return values and a starting index of 0. Every time it is
+  # queried, it grabs the value at the current index and increments the index.
   defmodule OrderedStore do
     def new(ordered_attempts, starting_index \\ 0) do
       {:ok, store} = Agent.start_link(fn -> {ordered_attempts, starting_index} end)
@@ -60,6 +60,56 @@ defmodule ExWaiterTest do
              } = waiter
     end
 
+    test "supports boolean return values, but with no value tracking" do
+      attempts = [nil, nil, nil, nil, "Got it!"]
+      store = OrderedStore.new(attempts)
+
+      assert {:ok, nil, waiter} =
+               ExWaiter.await(fn ->
+                 case OrderedStore.current_value(store) do
+                   nil -> false
+                   _ -> true
+                 end
+               end)
+
+      assert %{
+               attempts: [
+                 %{attempt_num: 1, fulfilled?: false, value: nil},
+                 %{attempt_num: 2, fulfilled?: false, value: nil},
+                 %{attempt_num: 3, fulfilled?: false, value: nil},
+                 %{attempt_num: 4, fulfilled?: false, value: nil},
+                 %{attempt_num: 5, fulfilled?: true, value: nil}
+               ],
+               fulfilled?: true,
+               value: nil
+             } = waiter
+    end
+
+    test "supports :ok and :error return values, but with no value tracking" do
+      attempts = [nil, nil, nil, nil, "Got it!"]
+      store = OrderedStore.new(attempts)
+
+      assert {:ok, nil, waiter} =
+               ExWaiter.await(fn ->
+                 case OrderedStore.current_value(store) do
+                   nil -> :error
+                   _ -> :ok
+                 end
+               end)
+
+      assert %{
+               attempts: [
+                 %{attempt_num: 1, fulfilled?: false, value: nil},
+                 %{attempt_num: 2, fulfilled?: false, value: nil},
+                 %{attempt_num: 3, fulfilled?: false, value: nil},
+                 %{attempt_num: 4, fulfilled?: false, value: nil},
+                 %{attempt_num: 5, fulfilled?: true, value: nil}
+               ],
+               fulfilled?: true,
+               value: nil
+             } = waiter
+    end
+
     test "doesn't make any more attempts than necessary" do
       attempts = [nil, "Got it!", "third", "fourth", "fifth"]
       store = OrderedStore.new(attempts)
@@ -85,34 +135,17 @@ defmodule ExWaiterTest do
              } = waiter
     end
 
-    test "throws an exception by default when retries are exhausted" do
-      attempts = [nil, nil, nil, nil, nil]
-      store = OrderedStore.new(attempts)
-
-      assert_raise(RetriesExhausted, fn ->
-        ExWaiter.await(fn ->
-          case OrderedStore.current_value(store) do
-            nil -> {:error, nil}
-            value -> {:ok, value}
-          end
-        end)
-      end)
-    end
-
-    test "can optionally return an error tuple when retries are exhausted" do
+    test "returns an error tuple when retries are exhausted" do
       attempts = [nil, nil, nil, nil, nil]
       store = OrderedStore.new(attempts)
 
       assert {:error, nil, waiter} =
-               ExWaiter.await(
-                 fn ->
-                   case OrderedStore.current_value(store) do
-                     nil -> {:error, nil}
-                     value -> {:ok, value}
-                   end
-                 end,
-                 exception_on_retries_exhausted?: false
-               )
+               ExWaiter.await(fn ->
+                 case OrderedStore.current_value(store) do
+                   nil -> {:error, nil}
+                   value -> {:ok, value}
+                 end
+               end)
 
       assert %{
                attempt_num: 5,
@@ -142,8 +175,7 @@ defmodule ExWaiterTest do
                      value -> {:ok, value}
                    end
                  end,
-                 num_attempts: 2,
-                 exception_on_retries_exhausted?: false
+                 num_attempts: 2
                )
 
       assert %{
@@ -164,15 +196,12 @@ defmodule ExWaiterTest do
       store = OrderedStore.new(attempts)
 
       assert {:error, nil, waiter} =
-               ExWaiter.await(
-                 fn ->
-                   case OrderedStore.current_value(store) do
-                     nil -> {:error, nil}
-                     value -> {:ok, value}
-                   end
-                 end,
-                 exception_on_retries_exhausted?: false
-               )
+               ExWaiter.await(fn ->
+                 case OrderedStore.current_value(store) do
+                   nil -> {:error, nil}
+                   value -> {:ok, value}
+                 end
+               end)
 
       assert %{
                attempts: [
@@ -199,8 +228,7 @@ defmodule ExWaiterTest do
                      value -> {:ok, value}
                    end
                  end,
-                 delay_before_fn: fn waiter -> waiter.attempt_num * 2 end,
-                 exception_on_retries_exhausted?: false
+                 delay_before_fn: fn waiter -> waiter.attempt_num * 2 end
                )
 
       assert %{
@@ -224,10 +252,41 @@ defmodule ExWaiterTest do
         ExWaiter.await(fn ->
           case OrderedStore.current_value(store) do
             nil ->
-              "This is an invalid result. It should be either {:ok, term} or {:error, term}"
+              "example invalid result value - should be {:ok, value}, {:error, value}, :ok, :error, true, or false"
 
             value ->
               {:ok, value}
+          end
+        end)
+      end)
+    end
+  end
+
+  describe "await!/2" do
+    test "waits for a result and returns the value" do
+      attempts = [nil, nil, nil, nil, "Got it!"]
+      store = OrderedStore.new(attempts)
+
+      assert ExWaiter.await!(fn ->
+               case OrderedStore.current_value(store) do
+                 nil ->
+                   {:error, nil}
+
+                 value ->
+                   {:ok, value}
+               end
+             end) == "Got it!"
+    end
+
+    test "throws an exception when retries are exhausted" do
+      attempts = [nil, nil, nil, nil, nil]
+      store = OrderedStore.new(attempts)
+
+      assert_raise(RetriesExhausted, fn ->
+        ExWaiter.await!(fn ->
+          case OrderedStore.current_value(store) do
+            nil -> {:error, nil}
+            value -> {:ok, value}
           end
         end)
       end)

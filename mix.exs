@@ -4,12 +4,13 @@ defmodule ExWaiter.MixProject do
   def project do
     [
       app: :ex_waiter,
-      version: "0.1.0",
+      version: "0.2.0",
       description: "Helper for waiting on asynchronous conditions to be met.",
       elixir: "~> 1.12",
       start_permanent: Mix.env() == :prod,
       deps: deps(),
-      package: package()
+      package: package(),
+      docs: docs()
     ]
   end
 
@@ -17,6 +18,13 @@ defmodule ExWaiter.MixProject do
   def application do
     [
       extra_applications: [:logger]
+    ]
+  end
+
+  def docs do
+    [
+      main: "ExWaiter",
+      source_url_pattern: "https://github.com/baldwindavid/ex_waiter/blob/main/%{path}#L%{line}"
     ]
   end
 

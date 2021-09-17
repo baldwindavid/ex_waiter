@@ -191,6 +191,39 @@ defmodule ExWaiterTest do
              } = waiter
     end
 
+    test "can optionally take the Waiter struct as an argument to the checker function" do
+      attempts = ["first", "second", "third"]
+      store = OrderedStore.new(attempts)
+
+      assert {:ok, "third", waiter} =
+               ExWaiter.await(fn waiter ->
+                 case OrderedStore.current_value(store) do
+                   nil ->
+                     {:error, nil}
+
+                   value ->
+                     if waiter.value == "second" do
+                       {:ok, value}
+                     else
+                       {:error, value}
+                     end
+                 end
+               end)
+
+      assert %{
+               attempt_num: 3,
+               attempts_left: 2,
+               num_attempts: 5,
+               attempts: [
+                 %{attempt_num: 1, fulfilled?: false, value: "first"},
+                 %{attempt_num: 2, fulfilled?: false, value: "second"},
+                 %{attempt_num: 3, fulfilled?: true, value: "third"}
+               ],
+               fulfilled?: true,
+               value: "third"
+             } = waiter
+    end
+
     test "waits increasing milliseconds before each successive retry by default" do
       attempts = [nil, nil, nil, nil, nil]
       store = OrderedStore.new(attempts)

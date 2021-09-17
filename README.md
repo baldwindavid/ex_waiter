@@ -93,7 +93,9 @@ that happened during attempts.
 
 The `await/2` function would return either `{:ok, %Click{}, %Waiter{}}` or
 `{:error, nil, %Waiter}`. It can be helpful to inspect this `Waiter`
-struct for debugging and optics into timing.
+struct for debugging and optics into timing. The anonymous function to
+check if the condition has been met can take 0 or 1 arguments, with the
+argument being the `%Waiter{}`.
 
 ### Additional Options
 
@@ -102,3 +104,8 @@ struct for debugging and optics into timing.
   the next attempt. The default is `fn waiter -> waiter.attempt_num * 10 end`.
 * `:num_attempts` - The number of attempts before retries are exhausted.
   (default: 5)
+
+## Thanks
+
+Thanks to my friends at [Enbala](https://www.enbala.com/), especially
+[@greg-enbala](https://github.com/greg-enbala) and [@s3cur3](https://github.com/s3cur3), for providing helpful feedback to polish the API. 

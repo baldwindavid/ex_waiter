@@ -90,7 +90,9 @@ defmodule ExWaiter do
 
   The `await/2` function would return either `{:ok, %Click{}, %Waiter{}}` or
   `{:error, nil, %Waiter}`. It can be helpful to inspect this `Waiter`
-  struct for debugging and optics into timing.
+  struct for debugging and optics into timing. The anonymous function to
+  check if the condition has been met can take 0 or 1 arguments, with the
+  argument being the `%Waiter{}`.
 
   ### Additional Options
 
@@ -108,12 +110,14 @@ defmodule ExWaiter do
 
   @type await_options ::
           {:delay_before_fn, (Waiter.t() -> integer())} | {:num_attempts, integer()}
-  @type checker_fn :: (() -> {:ok, any()} | {:error, any()} | :ok | :error | boolean())
+  @type checker_result :: {:ok, any()} | {:error, any()} | :ok | :error | boolean()
+  @type checker_fn :: (() -> checker_result) | (Waiter.t() -> checker_result)
 
   @doc """
   Periodically checks that a given condition has been met.
 
-  Takes a function that checks whether the given condition has been met.
+  Takes a function that checks whether the given condition has been met. This
+  function can take 0 or 1 arguments, with the argument being the `%Waiter{}`.
   Returning `{:ok, value}` or `{:error, value}` will ensure that you receive
   a return "value" from `await/2` and that the resulting `%Waiter{}` tracks
   changes to that value throughout attempts. However, if that "value" doesn't
@@ -221,7 +225,7 @@ defmodule ExWaiter do
     delay_before = waiter.delay_before_fn.(waiter)
     Process.sleep(delay_before)
 
-    case waiter.checker_fn.() do
+    case handle_checker_fn(waiter) do
       {:ok, value} -> handle_successful_attempt(waiter, value, delay_before)
       :ok -> handle_successful_attempt(waiter, nil, delay_before)
       true -> handle_successful_attempt(waiter, nil, delay_before)
@@ -232,7 +236,7 @@ defmodule ExWaiter do
     end
   end
 
-  defp init_attempt(waiter) do
+  defp init_attempt(%Waiter{} = waiter) do
     %{waiter | attempt_num: waiter.attempt_num + 1, attempts_left: waiter.attempts_left - 1}
   end
 
@@ -271,5 +275,13 @@ defmodule ExWaiter do
 
   defp delay_before_fn_default(%Waiter{} = waiter) do
     waiter.attempt_num * 10
+  end
+
+  defp handle_checker_fn(%Waiter{checker_fn: checker_fn} = waiter) do
+    case :erlang.fun_info(checker_fn)[:arity] do
+      1 -> checker_fn.(waiter)
+      0 -> checker_fn.()
+      _ -> raise "Function must have an arity of either 0 or 1"
+    end
   end
 end

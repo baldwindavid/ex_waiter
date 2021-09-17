@@ -1,10 +1,10 @@
 defmodule ExWaiter.Waiter do
   alias ExWaiter.Attempt
-  @enforce_keys [:checker_fn, :delay_before_fn]
+  @enforce_keys [:checker_fn, :delay_before]
 
   defstruct [
     :checker_fn,
-    :delay_before_fn,
+    :delay_before,
     fulfilled?: false,
     value: nil,
     total_delay: 0,
@@ -17,7 +17,7 @@ defmodule ExWaiter.Waiter do
 
   @type t :: %__MODULE__{
           checker_fn: (() -> {:ok, any()} | {:error, any()}),
-          delay_before_fn: (__MODULE__.t() -> integer()),
+          delay_before: (__MODULE__.t() -> integer()) | integer(),
           fulfilled?: boolean(),
           value: any(),
           total_delay: integer(),

@@ -249,7 +249,7 @@ defmodule ExWaiterTest do
              } = waiter
     end
 
-    test "takes a delay configuration function" do
+    test "can take a delay configuration function" do
       attempts = [nil, nil, nil, nil, nil]
       store = OrderedStore.new(attempts)
 
@@ -261,7 +261,7 @@ defmodule ExWaiterTest do
                      value -> {:ok, value}
                    end
                  end,
-                 delay_before_fn: fn waiter -> waiter.attempt_num * 2 end
+                 delay_before: fn waiter -> waiter.attempt_num * 2 end
                )
 
       assert %{
@@ -274,6 +274,34 @@ defmodule ExWaiterTest do
                ],
                fulfilled?: false,
                total_delay: 30
+             } = waiter
+    end
+
+    test "can take an integer for delay before" do
+      attempts = [nil, nil, nil, nil, nil]
+      store = OrderedStore.new(attempts)
+
+      assert {:error, nil, waiter} =
+               ExWaiter.await(
+                 fn ->
+                   case OrderedStore.current_value(store) do
+                     nil -> {:error, nil}
+                     value -> {:ok, value}
+                   end
+                 end,
+                 delay_before: 1
+               )
+
+      assert %{
+               attempts: [
+                 %{attempt_num: 1, delay_before: 1},
+                 %{attempt_num: 2, delay_before: 1},
+                 %{attempt_num: 3, delay_before: 1},
+                 %{attempt_num: 4, delay_before: 1},
+                 %{attempt_num: 5, delay_before: 1}
+               ],
+               fulfilled?: false,
+               total_delay: 5
              } = waiter
     end
 

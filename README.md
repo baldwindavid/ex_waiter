@@ -12,7 +12,7 @@ Add the latest release to your `mix.exs` file:
 ```elixir
 defp deps do
   [
-    {:ex_waiter, "~> 0.2.2"}
+    {:ex_waiter, "~> 0.3.0"}
   ]
 end
 ```
@@ -79,7 +79,7 @@ retries are exhausted, an exception will be raised that looks something like:
      %ExWaiter.Attempt{attempt_num: 5, delay_before: 50, fulfilled?: false, value: nil},
    ],
    attempts_left: 0,
-   delay_before_fn: #Function<...>,
+   delay_before: #Function<...>,
    fulfilled?: false,
    checker_fn: #Function<...>,
    num_attempts: 5,
@@ -99,13 +99,14 @@ argument being the `%Waiter{}`.
 
 ### Additional Options
 
-* `:delay_before_fn` - takes a function that receives the `%Waiter{}` struct at
-  that moment and returns a number of milliseconds to delay prior to performing
-  the next attempt. The default is `fn waiter -> waiter.attempt_num * 10 end`.
+* `:delay_before` - takes either an integer or a function that receives the
+  `%Waiter{}` struct at that moment and returns a number of milliseconds to
+  delay prior to performing the next attempt. The default is
+  `fn waiter -> waiter.attempt_num * 10 end`.
 * `:num_attempts` - The number of attempts before retries are exhausted.
   (default: 5)
 
 ## Thanks
 
 Thanks to my friends at [Enbala](https://www.enbala.com/), especially
-[@greg-enbala](https://github.com/greg-enbala) and [@s3cur3](https://github.com/s3cur3), for providing helpful feedback to polish the API. 
+[itsgreggreg](https://github.com/itsgreggreg) and [@s3cur3](https://github.com/s3cur3), for providing helpful feedback to polish the API. 

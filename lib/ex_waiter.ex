@@ -9,7 +9,7 @@ defmodule ExWaiter do
   ```elixir
   defp deps do
     [
-      {:ex_waiter, "~> 0.2.2"}
+      {:ex_waiter, "~> 0.3.0"}
     ]
   end
   ```
@@ -76,7 +76,7 @@ defmodule ExWaiter do
        %ExWaiter.Attempt{attempt_num: 5, delay_before: 50, fulfilled?: false, value: nil},
      ],
      attempts_left: 0,
-     delay_before_fn: #Function<...>,
+     delay_before: #Function<...>,
      fulfilled?: false,
      checker_fn: #Function<...>,
      num_attempts: 5,
@@ -96,12 +96,15 @@ defmodule ExWaiter do
 
   ### Additional Options
 
-  * `:delay_before_fn` - takes a function that receives the `%Waiter{}` struct at
-    that moment and returns a number of milliseconds to delay prior to performing
-    the next attempt. The default is `fn waiter -> waiter.attempt_num * 10 end`.
+  * `:delay_before` - takes either an integer or a function that receives the
+    `%Waiter{}` struct at that moment and returns a number of milliseconds to
+    delay prior to performing the next attempt. The default is
+    `fn waiter -> waiter.attempt_num * 10 end`.
   * `:num_attempts` - The number of attempts before retries are exhausted.
     (default: 5)
   """
+
+  require Logger
 
   alias ExWaiter.Attempt
   alias ExWaiter.Waiter
@@ -109,7 +112,7 @@ defmodule ExWaiter do
   alias ExWaiter.Exceptions.RetriesExhausted
 
   @type await_options ::
-          {:delay_before_fn, (Waiter.t() -> integer())} | {:num_attempts, integer()}
+          {:delay_before, (Waiter.t() -> integer())} | {:num_attempts, integer()}
   @type checker_result :: {:ok, any()} | {:error, any()} | :ok | :error | boolean()
   @type checker_fn :: (() -> checker_result) | (Waiter.t() -> checker_result)
 
@@ -128,10 +131,10 @@ defmodule ExWaiter do
 
   ## Options
 
-  * `:delay_before_fn` - takes a function that receives the `%Waiter{}` struct
-     at that moment and returns a number of milliseconds to delay prior to
-     performing the next attempt. The default function is
-     `fn waiter -> waiter.attempt_num * 10 end`.
+  * `:delay_before` - takes either an integer or a function that receives the
+    `%Waiter{}` struct at that moment and returns a number of milliseconds to
+    delay prior to performing the next attempt. The default is
+    `fn waiter -> waiter.attempt_num * 10 end`.
   * `:num_attempts` - The number of attempts before retries are exhausted.
      (default: 5)
 
@@ -166,9 +169,19 @@ defmodule ExWaiter do
   def await(checker_fn, opts \\ []) do
     num_attempts = Keyword.get(opts, :num_attempts, 5)
 
+    if Keyword.get(opts, :delay_before_fn) do
+      Logger.warning(
+        "DEPRECATED: `delay_before_fn` option - Please use `delay_before` rather than `delay_before_fn`. `delay_before` takes a function OR an integer (in milliseconds). The `delay_before_fn` will be removed in v1.0."
+      )
+    end
+
+    delay_before =
+      Keyword.get(opts, :delay_before) || Keyword.get(opts, :delay_before_fn) ||
+        (&delay_before_default/1)
+
     %Waiter{
       checker_fn: checker_fn,
-      delay_before_fn: Keyword.get(opts, :delay_before_fn, &delay_before_fn_default/1),
+      delay_before: delay_before,
       num_attempts: num_attempts,
       attempts_left: num_attempts
     }
@@ -222,7 +235,7 @@ defmodule ExWaiter do
   defp attempt(%Waiter{} = waiter) do
     waiter = init_attempt(waiter)
 
-    delay_before = waiter.delay_before_fn.(waiter)
+    delay_before = determine_delay_before(waiter)
     Process.sleep(delay_before)
 
     case handle_checker_fn(waiter) do
@@ -273,7 +286,13 @@ defmodule ExWaiter do
     }
   end
 
-  defp delay_before_fn_default(%Waiter{} = waiter) do
+  defp determine_delay_before(%Waiter{delay_before: ms}) when is_integer(ms), do: ms
+
+  defp determine_delay_before(%Waiter{delay_before: delay_before_fn} = waiter)
+       when is_function(delay_before_fn),
+       do: delay_before_fn.(waiter)
+
+  defp delay_before_default(%Waiter{} = waiter) do
     waiter.attempt_num * 10
   end
 

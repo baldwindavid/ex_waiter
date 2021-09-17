@@ -109,4 +109,4 @@ argument being the `%Waiter{}`.
 ## Thanks
 
 Thanks to my friends at [Enbala](https://www.enbala.com/), especially
-[itsgreggreg](https://github.com/itsgreggreg) and [@s3cur3](https://github.com/s3cur3), for providing helpful feedback to polish the API. 
+[@itsgreggreg](https://github.com/itsgreggreg) and [@s3cur3](https://github.com/s3cur3), for providing helpful feedback to polish the API. 

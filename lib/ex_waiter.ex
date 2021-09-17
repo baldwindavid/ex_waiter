@@ -9,7 +9,7 @@ defmodule ExWaiter do
   ```elixir
   defp deps do
     [
-      {:ex_waiter, "~> 0.3.1"}
+      {:ex_waiter, "~> 0.3.2"}
     ]
   end
   ```
@@ -112,7 +112,7 @@ defmodule ExWaiter do
   alias ExWaiter.Exceptions.RetriesExhausted
 
   @type await_options ::
-          {:delay_before, (Waiter.t() -> integer())} | {:num_attempts, integer()}
+          {:delay_before, (Waiter.t() -> integer()) | integer()} | {:num_attempts, integer()}
   @type checker_result :: {:ok, any()} | {:error, any()} | :ok | :error | boolean()
   @type checker_fn :: (() -> checker_result) | (Waiter.t() -> checker_result)
 

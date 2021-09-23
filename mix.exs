@@ -6,7 +6,7 @@ defmodule ExWaiter.MixProject do
       app: :ex_waiter,
       version: "0.3.2",
       description: "Helper for waiting on asynchronous conditions to be met.",
-      elixir: "~> 1.12",
+      elixir: "~> 1.10",
       start_permanent: Mix.env() == :prod,
       deps: deps(),
       package: package(),

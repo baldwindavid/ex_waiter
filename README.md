@@ -1,6 +1,6 @@
 # ExWaiter
 
-[![CI Status](https://github.com/s3cur3/ex_waiter/actions/workflows/build-and-test.yml/badge.svg)](https://github.com/s3cur3/ex_waiter/actions/workflows/build-and-test.yml)
+[![CI Status](https://github.com/baldwindavid/ex_waiter/actions/workflows/build-and-test.yml/badge.svg)](https://github.com/baldwindavid/ex_waiter/actions/workflows/build-and-test.yml)
 
 Helper for waiting on asynchronous conditions to be met.
 

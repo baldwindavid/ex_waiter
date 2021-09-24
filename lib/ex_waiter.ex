@@ -9,7 +9,7 @@ defmodule ExWaiter do
   ```elixir
   defp deps do
     [
-      {:ex_waiter, "~> 0.3.2"}
+      {:ex_waiter, "~> 0.3.3"}
     ]
   end
   ```

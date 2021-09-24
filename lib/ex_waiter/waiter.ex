@@ -1,10 +1,18 @@
 defmodule ExWaiter.Waiter do
   alias ExWaiter.Attempt
-  @enforce_keys [:checker_fn, :delay_before]
 
-  defstruct [
+  @enforce_keys [:checker_fn, :delay_before, :returning]
+
+  @type checker_result :: {:ok, any()} | {:error, any()} | :ok | :error | boolean()
+  @type checker_fn :: (() -> checker_result) | (__MODULE__.t() -> checker_result)
+  @type delay_before :: (__MODULE__.t() -> integer()) | integer()
+  @type returning :: (__MODULE__.t() -> any())
+  @type num_attempts :: integer() | :infinite
+
+  defstruct([
     :checker_fn,
     :delay_before,
+    :returning,
     fulfilled?: false,
     value: nil,
     total_delay: 0,
@@ -13,15 +21,16 @@ defmodule ExWaiter.Waiter do
     attempt_num: 0,
     attempts: [],
     exception_on_retries_exhausted?: true
-  ]
+  ])
 
   @type t :: %__MODULE__{
-          checker_fn: (() -> {:ok, any()} | {:error, any()}),
-          delay_before: (__MODULE__.t() -> integer()) | integer(),
+          checker_fn: checker_fn,
+          delay_before: delay_before,
+          returning: returning,
           fulfilled?: boolean(),
           value: any(),
           total_delay: integer(),
-          num_attempts: integer(),
+          num_attempts: num_attempts,
           attempts_left: integer(),
           attempt_num: integer(),
           attempts: [Attempt.t()]

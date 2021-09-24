@@ -14,7 +14,7 @@ Add the latest release to your `mix.exs` file:
 ```elixir
 defp deps do
   [
-    {:ex_waiter, "~> 0.3.3"}
+    {:ex_waiter, "~> 0.4.0"}
   ]
 end
 ```
@@ -52,14 +52,8 @@ click.
 ```elixir
 click = ExWaiter.await!(fn ->
   case Clicks.most_recent() do
-    %Click{} = click ->
-      {:ok, click}
-
-    value ->
-      # This is a good place for a callback you might want to run each
-      # time the condition is unmet (e.g. flushing jobs).
-      {:error, value}
-
+    %Click{} = click -> {:ok, click}
+    _ -> :error
   end
 end)
 ```
@@ -82,6 +76,7 @@ retries are exhausted, an exception will be raised that looks something like:
    ],
    attempts_left: 0,
    delay_before: #Function<...>,
+   returning: #Function<...>,
    fulfilled?: false,
    checker_fn: #Function<...>,
    num_attempts: 5,
@@ -93,20 +88,28 @@ retries are exhausted, an exception will be raised that looks something like:
 This displays a `Waiter` struct, which includes a recording of everything
 that happened during attempts.
 
-The `await/2` function would return either `{:ok, %Click{}, %Waiter{}}` or
-`{:error, nil, %Waiter}`. It can be helpful to inspect this `Waiter`
+The `await/2` function would return either `{:ok, %Click{}}` or
+`{:error, %Waiter}`. It can be helpful to inspect this `Waiter`
 struct for debugging and optics into timing. The anonymous function to
 check if the condition has been met can take 0 or 1 arguments, with the
 argument being the `%Waiter{}`.
 
 ### Additional Options
 
-* `:delay_before` - takes either an integer or a function that receives the
+* `:delay_before` - Takes either an integer or a function that receives the
   `%Waiter{}` struct at that moment and returns a number of milliseconds to
   delay prior to performing the next attempt. The default is
   `fn waiter -> waiter.attempt_num * 10 end`.
-* `:num_attempts` - The number of attempts before retries are exhausted.
-  (default: 5)
+* `:num_attempts` - The number of attempts before retries are exhausted. Takes
+  either an integer or :infinite. (default: 5)
+* `:returning` - Configures the return value when the condition is met. Takes
+  a function that receives the `%Waiter{}` struct. The default is
+  `fn waiter -> waiter.value end`.
+
+## Warning
+
+This library was recently released and the API has not yet fully
+stabilized. Breaking changes may happen between minor versions prior to 1.0.
 
 ## Thanks
 

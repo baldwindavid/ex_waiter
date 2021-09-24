@@ -28,11 +28,11 @@ defmodule ExWaiterTest do
   end
 
   describe "await/2" do
-    test "waits for a result and retries up to 5 times by default" do
+    test "retries up to 5 times and returns the value by default upon success" do
       attempts = [nil, nil, nil, nil, "Got it!"]
       store = OrderedStore.new(attempts)
 
-      assert {:ok, "Got it!", waiter} =
+      assert {:ok, "Got it!"} =
                ExWaiter.await(fn ->
                  case OrderedStore.current_value(store) do
                    nil ->
@@ -42,6 +42,25 @@ defmodule ExWaiterTest do
                      {:ok, value}
                  end
                end)
+    end
+
+    test "can be configured to return the Waiter struct" do
+      attempts = [nil, nil, nil, nil, "Got it!"]
+      store = OrderedStore.new(attempts)
+
+      assert {:ok, waiter} =
+               ExWaiter.await(
+                 fn ->
+                   case OrderedStore.current_value(store) do
+                     nil ->
+                       {:error, nil}
+
+                     value ->
+                       {:ok, value}
+                   end
+                 end,
+                 returning: fn waiter -> waiter end
+               )
 
       assert %{
                attempt_num: 5,
@@ -64,13 +83,16 @@ defmodule ExWaiterTest do
       attempts = [nil, nil, nil, nil, "Got it!"]
       store = OrderedStore.new(attempts)
 
-      assert {:ok, nil, waiter} =
-               ExWaiter.await(fn ->
-                 case OrderedStore.current_value(store) do
-                   nil -> false
-                   _ -> true
-                 end
-               end)
+      assert {:ok, waiter} =
+               ExWaiter.await(
+                 fn ->
+                   case OrderedStore.current_value(store) do
+                     nil -> false
+                     _ -> true
+                   end
+                 end,
+                 returning: fn waiter -> waiter end
+               )
 
       assert %{
                attempts: [
@@ -89,13 +111,16 @@ defmodule ExWaiterTest do
       attempts = [nil, nil, nil, nil, "Got it!"]
       store = OrderedStore.new(attempts)
 
-      assert {:ok, nil, waiter} =
-               ExWaiter.await(fn ->
-                 case OrderedStore.current_value(store) do
-                   nil -> :error
-                   _ -> :ok
-                 end
-               end)
+      assert {:ok, waiter} =
+               ExWaiter.await(
+                 fn ->
+                   case OrderedStore.current_value(store) do
+                     nil -> :error
+                     _ -> :ok
+                   end
+                 end,
+                 returning: fn waiter -> waiter end
+               )
 
       assert %{
                attempts: [
@@ -114,13 +139,16 @@ defmodule ExWaiterTest do
       attempts = [nil, "Got it!", "third", "fourth", "fifth"]
       store = OrderedStore.new(attempts)
 
-      assert {:ok, "Got it!", waiter} =
-               ExWaiter.await(fn ->
-                 case OrderedStore.current_value(store) do
-                   nil -> {:error, nil}
-                   value -> {:ok, value}
-                 end
-               end)
+      assert {:ok, waiter} =
+               ExWaiter.await(
+                 fn ->
+                   case OrderedStore.current_value(store) do
+                     nil -> {:error, nil}
+                     value -> {:ok, value}
+                   end
+                 end,
+                 returning: fn waiter -> waiter end
+               )
 
       assert %{
                attempt_num: 2,
@@ -135,11 +163,11 @@ defmodule ExWaiterTest do
              } = waiter
     end
 
-    test "returns an error tuple when retries are exhausted" do
+    test "returns an error tuple with the Waiter struct when retries are exhausted" do
       attempts = [nil, nil, nil, nil, nil]
       store = OrderedStore.new(attempts)
 
-      assert {:error, nil, waiter} =
+      assert {:error, waiter} =
                ExWaiter.await(fn ->
                  case OrderedStore.current_value(store) do
                    nil -> {:error, nil}
@@ -167,7 +195,7 @@ defmodule ExWaiterTest do
       attempts = [nil, nil, "Got it!"]
       store = OrderedStore.new(attempts)
 
-      assert {:error, nil, waiter} =
+      assert {:error, waiter} =
                ExWaiter.await(
                  fn ->
                    case OrderedStore.current_value(store) do
@@ -191,24 +219,60 @@ defmodule ExWaiterTest do
              } = waiter
     end
 
+    test "can be configured for infinite attempts" do
+      attempts = [nil, nil, nil, nil, nil, "Got it!"]
+      store = OrderedStore.new(attempts)
+
+      assert {:ok, waiter} =
+               ExWaiter.await(
+                 fn ->
+                   case OrderedStore.current_value(store) do
+                     nil -> {:error, nil}
+                     value -> {:ok, value}
+                   end
+                 end,
+                 num_attempts: :infinite,
+                 returning: fn waiter -> waiter end
+               )
+
+      assert %{
+               attempt_num: 6,
+               attempts_left: :infinite,
+               num_attempts: :infinite,
+               attempts: [
+                 %{attempt_num: 1, fulfilled?: false},
+                 %{attempt_num: 2, fulfilled?: false},
+                 %{attempt_num: 3, fulfilled?: false},
+                 %{attempt_num: 4, fulfilled?: false},
+                 %{attempt_num: 5, fulfilled?: false},
+                 %{attempt_num: 6, fulfilled?: true}
+               ],
+               fulfilled?: true,
+               value: "Got it!"
+             } = waiter
+    end
+
     test "can optionally take the Waiter struct as an argument to the checker function" do
       attempts = ["first", "second", "third"]
       store = OrderedStore.new(attempts)
 
-      assert {:ok, "third", waiter} =
-               ExWaiter.await(fn waiter ->
-                 case OrderedStore.current_value(store) do
-                   nil ->
-                     {:error, nil}
+      assert {:ok, waiter} =
+               ExWaiter.await(
+                 fn waiter ->
+                   case OrderedStore.current_value(store) do
+                     nil ->
+                       {:error, nil}
 
-                   value ->
-                     if waiter.value == "second" do
-                       {:ok, value}
-                     else
-                       {:error, value}
-                     end
-                 end
-               end)
+                     value ->
+                       if waiter.value == "second" do
+                         {:ok, value}
+                       else
+                         {:error, value}
+                       end
+                   end
+                 end,
+                 returning: fn waiter -> waiter end
+               )
 
       assert %{
                attempt_num: 3,
@@ -228,7 +292,7 @@ defmodule ExWaiterTest do
       attempts = [nil, nil, nil, nil, nil]
       store = OrderedStore.new(attempts)
 
-      assert {:error, nil, waiter} =
+      assert {:error, waiter} =
                ExWaiter.await(fn ->
                  case OrderedStore.current_value(store) do
                    nil -> {:error, nil}
@@ -253,7 +317,7 @@ defmodule ExWaiterTest do
       attempts = [nil, nil, nil, nil, nil]
       store = OrderedStore.new(attempts)
 
-      assert {:error, nil, waiter} =
+      assert {:error, waiter} =
                ExWaiter.await(
                  fn ->
                    case OrderedStore.current_value(store) do
@@ -281,7 +345,7 @@ defmodule ExWaiterTest do
       attempts = [nil, nil, nil, nil, nil]
       store = OrderedStore.new(attempts)
 
-      assert {:error, nil, waiter} =
+      assert {:error, waiter} =
                ExWaiter.await(
                  fn ->
                    case OrderedStore.current_value(store) do
@@ -303,6 +367,19 @@ defmodule ExWaiterTest do
                fulfilled?: false,
                total_delay: 5
              } = waiter
+    end
+
+    test "raises an exception with an invalid option" do
+      assert_raise(
+        RuntimeError,
+        "hello is not a valid option - Valid Options: delay_before, returning, num_attempts",
+        fn ->
+          ExWaiter.await(
+            fn -> "doesn't matter" end,
+            hello: :world
+          )
+        end
+      )
     end
 
     test "raises an exception with an invalid result" do

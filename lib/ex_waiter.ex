@@ -9,7 +9,7 @@ defmodule ExWaiter do
   ```elixir
   defp deps do
     [
-      {:ex_waiter, "~> 0.4.0"}
+      {:ex_waiter, "~> 0.5.0"}
     ]
   end
   ```
@@ -63,14 +63,14 @@ defmodule ExWaiter do
    %ExWaiter.Waiter{
      attempt_num: 5,
      attempts: [
-       %ExWaiter.Attempt{attempt_num: 1, delay_before: 10, fulfilled?: false, value: nil},
-       %ExWaiter.Attempt{attempt_num: 2, delay_before: 20, fulfilled?: false, value: nil},
-       %ExWaiter.Attempt{attempt_num: 3, delay_before: 30, fulfilled?: false, value: nil},
-       %ExWaiter.Attempt{attempt_num: 4, delay_before: 40, fulfilled?: false, value: nil},
-       %ExWaiter.Attempt{attempt_num: 5, delay_before: 50, fulfilled?: false, value: nil},
+       %ExWaiter.Attempt{attempt_num: 1, delay: 10, fulfilled?: false, value: nil},
+       %ExWaiter.Attempt{attempt_num: 2, delay: 20, fulfilled?: false, value: nil},
+       %ExWaiter.Attempt{attempt_num: 3, delay: 30, fulfilled?: false, value: nil},
+       %ExWaiter.Attempt{attempt_num: 4, delay: 40, fulfilled?: false, value: nil},
+       %ExWaiter.Attempt{attempt_num: 5, delay: 50, fulfilled?: false, value: nil},
      ],
      attempts_left: 0,
-     delay_before: #Function<...>,
+     delay: #Function<...>,
      returning: #Function<...>,
      fulfilled?: false,
      checker_fn: #Function<...>,
@@ -91,7 +91,7 @@ defmodule ExWaiter do
 
   ### Additional Options
 
-  * `:delay_before` - Takes either an integer or a function that receives the
+  * `:delay` - Takes either an integer or a function that receives the
     `%Waiter{}` struct at that moment and returns a number of milliseconds to
     delay prior to performing the next attempt. The default is
     `fn waiter -> waiter.attempt_num * 10 end`.
@@ -109,10 +109,10 @@ defmodule ExWaiter do
   alias ExWaiter.Exceptions.InvalidResult
   alias ExWaiter.Exceptions.RetriesExhausted
 
-  @valid_options [:delay_before, :returning, :num_attempts]
+  @valid_options [:delay, :returning, :num_attempts]
 
   @type await_options ::
-          {:delay_before, Waiter.delay_before()}
+          {:delay, Waiter.delay()}
           | {:num_attempts, Waiter.num_attempts()}
           | {:returning, Waiter.returning()}
 
@@ -130,7 +130,7 @@ defmodule ExWaiter do
 
   ## Options
 
-  * `:delay_before` - Takes either an integer or a function that receives the
+  * `:delay` - Takes either an integer or a function that receives the
     `%Waiter{}` struct at that moment and returns a number of milliseconds to
     delay prior to performing the next attempt. The default is
     `fn waiter -> waiter.attempt_num * 10 end`.
@@ -180,7 +180,7 @@ defmodule ExWaiter do
 
     %Waiter{
       checker_fn: checker_fn,
-      delay_before: Keyword.get(opts, :delay_before, &delay_before_default/1),
+      delay: Keyword.get(opts, :delay, &delay_default/1),
       num_attempts: num_attempts,
       attempts_left: num_attempts,
       returning: Keyword.get(opts, :returning, &returning_default/1)
@@ -235,16 +235,16 @@ defmodule ExWaiter do
   defp attempt(%Waiter{} = waiter) do
     waiter = init_attempt(waiter)
 
-    delay_before = determine_delay_before(waiter)
-    Process.sleep(delay_before)
+    delay = determine_delay(waiter)
+    Process.sleep(delay)
 
     case handle_checker_fn(waiter) do
-      {:ok, value} -> handle_successful_attempt(waiter, value, delay_before)
-      :ok -> handle_successful_attempt(waiter, nil, delay_before)
-      true -> handle_successful_attempt(waiter, nil, delay_before)
-      {:error, value} -> handle_failed_attempt(waiter, value, delay_before)
-      :error -> handle_failed_attempt(waiter, nil, delay_before)
-      false -> handle_failed_attempt(waiter, nil, delay_before)
+      {:ok, value} -> handle_successful_attempt(waiter, value, delay)
+      :ok -> handle_successful_attempt(waiter, nil, delay)
+      true -> handle_successful_attempt(waiter, nil, delay)
+      {:error, value} -> handle_failed_attempt(waiter, value, delay)
+      :error -> handle_failed_attempt(waiter, nil, delay)
+      false -> handle_failed_attempt(waiter, nil, delay)
       result -> raise InvalidResult, result
     end
   end
@@ -257,25 +257,25 @@ defmodule ExWaiter do
     %{waiter | attempt_num: waiter.attempt_num + 1, attempts_left: waiter.attempts_left - 1}
   end
 
-  defp handle_successful_attempt(%Waiter{} = waiter, value, delay_before) do
-    waiter = record_attempt(waiter, true, value, delay_before)
+  defp handle_successful_attempt(%Waiter{} = waiter, value, delay) do
+    waiter = record_attempt(waiter, true, value, delay)
     {:ok, determine_returning(waiter)}
   end
 
-  defp handle_failed_attempt(%Waiter{} = waiter, value, delay_before) do
+  defp handle_failed_attempt(%Waiter{} = waiter, value, delay) do
     waiter
-    |> record_attempt(false, value, delay_before)
+    |> record_attempt(false, value, delay)
     |> attempt()
   end
 
-  defp record_attempt(%Waiter{} = waiter, fulfilled?, value, delay_before) do
+  defp record_attempt(%Waiter{} = waiter, fulfilled?, value, delay) do
     attempts =
       [
         %Attempt{
           attempt_num: waiter.attempt_num,
           fulfilled?: fulfilled?,
           value: value,
-          delay_before: delay_before
+          delay: delay
         }
         | Enum.reverse(waiter.attempts)
       ]
@@ -286,17 +286,17 @@ defmodule ExWaiter do
       | attempts: attempts,
         fulfilled?: fulfilled?,
         value: value,
-        total_delay: waiter.total_delay + delay_before
+        total_delay: waiter.total_delay + delay
     }
   end
 
-  defp determine_delay_before(%Waiter{delay_before: ms}) when is_integer(ms), do: ms
+  defp determine_delay(%Waiter{delay: ms}) when is_integer(ms), do: ms
 
-  defp determine_delay_before(%Waiter{delay_before: delay_before_fn} = waiter)
-       when is_function(delay_before_fn),
-       do: delay_before_fn.(waiter)
+  defp determine_delay(%Waiter{delay: delay_fn} = waiter)
+       when is_function(delay_fn),
+       do: delay_fn.(waiter)
 
-  defp delay_before_default(%Waiter{} = waiter) do
+  defp delay_default(%Waiter{} = waiter) do
     waiter.attempt_num * 10
   end
 

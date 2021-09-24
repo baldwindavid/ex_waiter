@@ -14,7 +14,7 @@ Add the latest release to your `mix.exs` file:
 ```elixir
 defp deps do
   [
-    {:ex_waiter, "~> 0.4.0"}
+    {:ex_waiter, "~> 0.5.0"}
   ]
 end
 ```
@@ -68,14 +68,14 @@ retries are exhausted, an exception will be raised that looks something like:
  %ExWaiter.Waiter{
    attempt_num: 5,
    attempts: [
-     %ExWaiter.Attempt{attempt_num: 1, delay_before: 10, fulfilled?: false, value: nil},
-     %ExWaiter.Attempt{attempt_num: 2, delay_before: 20, fulfilled?: false, value: nil},
-     %ExWaiter.Attempt{attempt_num: 3, delay_before: 30, fulfilled?: false, value: nil},
-     %ExWaiter.Attempt{attempt_num: 4, delay_before: 40, fulfilled?: false, value: nil},
-     %ExWaiter.Attempt{attempt_num: 5, delay_before: 50, fulfilled?: false, value: nil},
+     %ExWaiter.Attempt{attempt_num: 1, delay: 10, fulfilled?: false, value: nil},
+     %ExWaiter.Attempt{attempt_num: 2, delay: 20, fulfilled?: false, value: nil},
+     %ExWaiter.Attempt{attempt_num: 3, delay: 30, fulfilled?: false, value: nil},
+     %ExWaiter.Attempt{attempt_num: 4, delay: 40, fulfilled?: false, value: nil},
+     %ExWaiter.Attempt{attempt_num: 5, delay: 50, fulfilled?: false, value: nil},
    ],
    attempts_left: 0,
-   delay_before: #Function<...>,
+   delay: #Function<...>,
    returning: #Function<...>,
    fulfilled?: false,
    checker_fn: #Function<...>,
@@ -96,7 +96,7 @@ argument being the `%Waiter{}`.
 
 ### Additional Options
 
-* `:delay_before` - Takes either an integer or a function that receives the
+* `:delay` - Takes either an integer or a function that receives the
   `%Waiter{}` struct at that moment and returns a number of milliseconds to
   delay prior to performing the next attempt. The default is
   `fn waiter -> waiter.attempt_num * 10 end`.

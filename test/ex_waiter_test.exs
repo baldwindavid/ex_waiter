@@ -67,11 +67,11 @@ defmodule ExWaiterTest do
                attempts_left: 0,
                num_attempts: 5,
                attempts: [
-                 %{attempt_num: 1, fulfilled?: false, value: nil, delay_before: 10},
-                 %{attempt_num: 2, fulfilled?: false, value: nil, delay_before: 20},
-                 %{attempt_num: 3, fulfilled?: false, value: nil, delay_before: 30},
-                 %{attempt_num: 4, fulfilled?: false, value: nil, delay_before: 40},
-                 %{attempt_num: 5, fulfilled?: true, value: "Got it!", delay_before: 50}
+                 %{attempt_num: 1, fulfilled?: false, value: nil, delay: 10},
+                 %{attempt_num: 2, fulfilled?: false, value: nil, delay: 20},
+                 %{attempt_num: 3, fulfilled?: false, value: nil, delay: 30},
+                 %{attempt_num: 4, fulfilled?: false, value: nil, delay: 40},
+                 %{attempt_num: 5, fulfilled?: true, value: "Got it!", delay: 50}
                ],
                total_delay: 150,
                fulfilled?: true,
@@ -302,11 +302,11 @@ defmodule ExWaiterTest do
 
       assert %{
                attempts: [
-                 %{attempt_num: 1, delay_before: 10},
-                 %{attempt_num: 2, delay_before: 20},
-                 %{attempt_num: 3, delay_before: 30},
-                 %{attempt_num: 4, delay_before: 40},
-                 %{attempt_num: 5, delay_before: 50}
+                 %{attempt_num: 1, delay: 10},
+                 %{attempt_num: 2, delay: 20},
+                 %{attempt_num: 3, delay: 30},
+                 %{attempt_num: 4, delay: 40},
+                 %{attempt_num: 5, delay: 50}
                ],
                fulfilled?: false,
                total_delay: 150
@@ -325,16 +325,16 @@ defmodule ExWaiterTest do
                      value -> {:ok, value}
                    end
                  end,
-                 delay_before: fn waiter -> waiter.attempt_num * 2 end
+                 delay: fn waiter -> waiter.attempt_num * 2 end
                )
 
       assert %{
                attempts: [
-                 %{attempt_num: 1, delay_before: 2},
-                 %{attempt_num: 2, delay_before: 4},
-                 %{attempt_num: 3, delay_before: 6},
-                 %{attempt_num: 4, delay_before: 8},
-                 %{attempt_num: 5, delay_before: 10}
+                 %{attempt_num: 1, delay: 2},
+                 %{attempt_num: 2, delay: 4},
+                 %{attempt_num: 3, delay: 6},
+                 %{attempt_num: 4, delay: 8},
+                 %{attempt_num: 5, delay: 10}
                ],
                fulfilled?: false,
                total_delay: 30
@@ -353,16 +353,16 @@ defmodule ExWaiterTest do
                      value -> {:ok, value}
                    end
                  end,
-                 delay_before: 1
+                 delay: 1
                )
 
       assert %{
                attempts: [
-                 %{attempt_num: 1, delay_before: 1},
-                 %{attempt_num: 2, delay_before: 1},
-                 %{attempt_num: 3, delay_before: 1},
-                 %{attempt_num: 4, delay_before: 1},
-                 %{attempt_num: 5, delay_before: 1}
+                 %{attempt_num: 1, delay: 1},
+                 %{attempt_num: 2, delay: 1},
+                 %{attempt_num: 3, delay: 1},
+                 %{attempt_num: 4, delay: 1},
+                 %{attempt_num: 5, delay: 1}
                ],
                fulfilled?: false,
                total_delay: 5
@@ -372,7 +372,7 @@ defmodule ExWaiterTest do
     test "raises an exception with an invalid option" do
       assert_raise(
         RuntimeError,
-        "hello is not a valid option - Valid Options: delay_before, returning, num_attempts",
+        "hello is not a valid option - Valid Options: delay, returning, num_attempts",
         fn ->
           ExWaiter.await(
             fn -> "doesn't matter" end,

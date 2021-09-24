@@ -1,5 +1,5 @@
 defmodule ExWaiter.Attempt do
-  @keys [:attempt_num, :fulfilled?, :value, :delay_before]
+  @keys [:attempt_num, :fulfilled?, :value, :delay]
   @enforce_keys @keys
   defstruct @keys
 
@@ -7,6 +7,6 @@ defmodule ExWaiter.Attempt do
           attempt_num: integer(),
           fulfilled?: boolean(),
           value: any(),
-          delay_before: integer()
+          delay: integer()
         }
 end

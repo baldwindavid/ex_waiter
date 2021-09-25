@@ -14,7 +14,7 @@ Add the latest release to your `mix.exs` file:
 ```elixir
 defp deps do
   [
-    {:ex_waiter, "~> 0.5.0"}
+    {:ex_waiter, "~> 0.6.0"}
   ]
 end
 ```
@@ -23,7 +23,7 @@ Then run `mix deps.get` in your shell to fetch the dependencies.
 
 ## Why This Exists?
 
-In some testing scenarios there is no obvious way to ensure that asynchronous
+In some scenarios there is no obvious way to ensure that asynchronous
 side effects have taken place without continuously checking for successful
 completion. For example, perhaps an assertion is needed on click data being
 asynchronously persisted to the database. It is not difficult to write a
@@ -74,7 +74,6 @@ retries are exhausted, an exception will be raised that looks something like:
      %ExWaiter.Attempt{attempt_num: 4, delay: 40, fulfilled?: false, value: nil},
      %ExWaiter.Attempt{attempt_num: 5, delay: 50, fulfilled?: false, value: nil},
    ],
-   attempts_left: 0,
    delay: #Function<...>,
    returning: #Function<...>,
    fulfilled?: false,
@@ -89,22 +88,29 @@ This displays a `Waiter` struct, which includes a recording of everything
 that happened during attempts.
 
 The `await/2` function would return either `{:ok, %Click{}}` or
-`{:error, %Waiter}`. It can be helpful to inspect this `Waiter`
+`{:error, nil}`. It can be helpful to inspect this `Waiter`
 struct for debugging and optics into timing. The anonymous function to
 check if the condition has been met can take 0 or 1 arguments, with the
 argument being the `%Waiter{}`.
 
 ### Additional Options
 
+* `:num_attempts` - The number of attempts before retries are exhausted. Takes
+  either an integer or `:infinity`. (default: 5)
 * `:delay` - Takes either an integer or a function that receives the
   `%Waiter{}` struct at that moment and returns a number of milliseconds to
   delay prior to performing the next attempt. The default is
   `fn waiter -> waiter.attempt_num * 10 end`.
-* `:num_attempts` - The number of attempts before retries are exhausted. Takes
-  either an integer or :infinite. (default: 5)
 * `:returning` - Configures the return value when the condition is met. Takes
   a function that receives the `%Waiter{}` struct. The default is
   `fn waiter -> waiter.value end`.
+* `:on_success` - Configures a callback when the condition is met. Takes
+  a function that receives the `%Waiter{}` struct. Can be used for logging
+  and inspection.
+* `:on_failure` - Configures a callback when retries are exhausted. Takes
+  a function that receives the `%Waiter{}` struct. Can be used for logging
+  and inspection.
+
 
 ## Warning
 

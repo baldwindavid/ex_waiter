@@ -9,7 +9,7 @@ defmodule ExWaiter do
   ```elixir
   defp deps do
     [
-      {:ex_waiter, "~> 0.5.0"}
+      {:ex_waiter, "~> 0.6.0"}
     ]
   end
   ```
@@ -18,7 +18,7 @@ defmodule ExWaiter do
 
   ## Why This Exists?
 
-  In some testing scenarios there is no obvious way to ensure that asynchronous
+  In some scenarios there is no obvious way to ensure that asynchronous
   side effects have taken place without continuously checking for successful
   completion. For example, perhaps an assertion is needed on click data being
   asynchronously persisted to the database. It is not difficult to write a
@@ -69,7 +69,6 @@ defmodule ExWaiter do
        %ExWaiter.Attempt{attempt_num: 4, delay: 40, fulfilled?: false, value: nil},
        %ExWaiter.Attempt{attempt_num: 5, delay: 50, fulfilled?: false, value: nil},
      ],
-     attempts_left: 0,
      delay: #Function<...>,
      returning: #Function<...>,
      fulfilled?: false,
@@ -84,37 +83,43 @@ defmodule ExWaiter do
   that happened during attempts.
 
   The `await/2` function would return either `{:ok, %Click{}}` or
-  `{:error, %Waiter}`. It can be helpful to inspect this `Waiter`
+  `{:error, nil}`. It can be helpful to inspect this `Waiter`
   struct for debugging and optics into timing. The anonymous function to
   check if the condition has been met can take 0 or 1 arguments, with the
   argument being the `%Waiter{}`.
 
   ### Additional Options
 
+  * `:num_attempts` - The number of attempts before retries are exhausted. Takes
+    either an integer or `:infinity`. (default: 5)
   * `:delay` - Takes either an integer or a function that receives the
     `%Waiter{}` struct at that moment and returns a number of milliseconds to
     delay prior to performing the next attempt. The default is
     `fn waiter -> waiter.attempt_num * 10 end`.
-  * `:num_attempts` - The number of attempts before retries are exhausted. Takes
-    either an integer or :infinite. (default: 5)
   * `:returning` - Configures the return value when the condition is met. Takes
     a function that receives the `%Waiter{}` struct. The default is
     `fn waiter -> waiter.value end`.
+  * `:on_success` - Configures a callback when the condition is met. Takes
+    a function that receives the `%Waiter{}` struct. Can be used for logging
+    and inspection.
+  * `:on_failure` - Configures a callback when retries are exhausted. Takes
+    a function that receives the `%Waiter{}` struct. Can be used for logging
+    and inspection.
   """
-
-  require Logger
 
   alias ExWaiter.Attempt
   alias ExWaiter.Waiter
   alias ExWaiter.Exceptions.InvalidResult
   alias ExWaiter.Exceptions.RetriesExhausted
 
-  @valid_options [:delay, :returning, :num_attempts]
+  @valid_options [:delay, :returning, :on_success, :on_failure, :num_attempts]
 
   @type await_options ::
           {:delay, Waiter.delay()}
           | {:num_attempts, Waiter.num_attempts()}
           | {:returning, Waiter.returning()}
+          | {:on_success, Waiter.on_success()}
+          | {:on_failure, Waiter.on_failure()}
 
   @doc """
   Periodically checks that a given condition has been met.
@@ -126,19 +131,25 @@ defmodule ExWaiter do
   attempts. However, if that "value" doesn't matter, one of `:ok`, `:error`,
   `true`, or `false` may be returned. If the condition has been met, a tuple
   with `{:ok, value}` will be returned. If retries are exhausted prior to the
-  condition being met, `{:error, %Waiter{}}` will be returned.
+  condition being met, `{:error, value}` will be returned.
 
   ## Options
 
+  * `:num_attempts` - The number of attempts before retries are exhausted. Takes
+    either an integer or `:infinity`. (default: 5)
   * `:delay` - Takes either an integer or a function that receives the
     `%Waiter{}` struct at that moment and returns a number of milliseconds to
     delay prior to performing the next attempt. The default is
     `fn waiter -> waiter.attempt_num * 10 end`.
-  * `:num_attempts` - The number of attempts before retries are exhausted. Takes
-    either an integer or :infinite. (default: 5)
   * `:returning` - Configures the return value when the condition is met. Takes
     a function that receives the `%Waiter{}` struct. The default is
     `fn waiter -> waiter.value end`.
+  * `:on_success` - Configures a callback when the condition is met. Takes
+    a function that receives the `%Waiter{}` struct. Can be used for logging
+    and inspection.
+  * `:on_failure` - Configures a callback when retries are exhausted. Takes
+    a function that receives the `%Waiter{}` struct. Can be used for logging
+    and inspection.
 
   ## Examples
 
@@ -169,23 +180,10 @@ defmodule ExWaiter do
   @spec await(Waiter.checker_fn(), [await_options]) ::
           {:ok, any()} | {:error, Waiter.t()}
   def await(checker_fn, opts \\ []) do
-    Enum.each(opts, fn {key, _} ->
-      unless key in @valid_options do
-        valid_options = @valid_options |> Enum.join(", ")
-        raise "#{key} is not a valid option - Valid Options: #{valid_options}"
-      end
-    end)
-
-    num_attempts = Keyword.get(opts, :num_attempts, 5)
-
-    %Waiter{
-      checker_fn: checker_fn,
-      delay: Keyword.get(opts, :delay, &delay_default/1),
-      num_attempts: num_attempts,
-      attempts_left: num_attempts,
-      returning: Keyword.get(opts, :returning, &returning_default/1)
-    }
-    |> attempt()
+    case do_await(checker_fn, opts) do
+      {:ok, waiter} -> {:ok, determine_returning(waiter)}
+      {:error, waiter} -> {:error, determine_returning(waiter)}
+    end
   end
 
   @doc """
@@ -224,13 +222,41 @@ defmodule ExWaiter do
   """
   @spec await!(Waiter.checker_fn(), [await_options]) :: any()
   def await!(checker_fn, opts \\ []) do
-    case await(checker_fn, opts) do
-      {:ok, value} -> value
+    case do_await(checker_fn, opts) do
+      {:ok, waiter} -> determine_returning(waiter)
       {:error, waiter} -> raise(RetriesExhausted, waiter)
     end
   end
 
-  defp attempt(%Waiter{attempts_left: 0} = waiter), do: {:error, waiter}
+  defp do_await(checker_fn, opts) do
+    Enum.each(opts, fn {key, _} ->
+      unless key in @valid_options do
+        valid_options = @valid_options |> Enum.join(", ")
+        raise "#{key} is not a valid option - Valid Options: #{valid_options}"
+      end
+    end)
+
+    num_attempts = Keyword.get(opts, :num_attempts, 5)
+
+    unless is_integer(num_attempts) || num_attempts == :infinity do
+      raise ":num_attempts must be either an integer (ms) or :infinity"
+    end
+
+    %Waiter{
+      checker_fn: checker_fn,
+      delay: Keyword.get(opts, :delay, &delay_default/1),
+      num_attempts: Keyword.get(opts, :num_attempts, 5),
+      returning: Keyword.get(opts, :returning, &returning_default/1),
+      on_success: Keyword.get(opts, :on_success, & &1),
+      on_failure: Keyword.get(opts, :on_failure, & &1)
+    }
+    |> attempt()
+  end
+
+  defp attempt(%Waiter{attempt_num: num, num_attempts: num} = waiter) do
+    waiter.on_failure.(waiter)
+    {:error, waiter}
+  end
 
   defp attempt(%Waiter{} = waiter) do
     waiter = init_attempt(waiter)
@@ -249,17 +275,14 @@ defmodule ExWaiter do
     end
   end
 
-  defp init_attempt(%Waiter{num_attempts: :infinite} = waiter) do
-    %{waiter | attempt_num: waiter.attempt_num + 1}
-  end
-
   defp init_attempt(%Waiter{} = waiter) do
-    %{waiter | attempt_num: waiter.attempt_num + 1, attempts_left: waiter.attempts_left - 1}
+    %{waiter | attempt_num: waiter.attempt_num + 1}
   end
 
   defp handle_successful_attempt(%Waiter{} = waiter, value, delay) do
     waiter = record_attempt(waiter, true, value, delay)
-    {:ok, determine_returning(waiter)}
+    waiter.on_success.(waiter)
+    {:ok, waiter}
   end
 
   defp handle_failed_attempt(%Waiter{} = waiter, value, delay) do

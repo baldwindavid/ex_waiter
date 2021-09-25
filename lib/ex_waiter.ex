@@ -9,7 +9,7 @@ defmodule ExWaiter do
   ```elixir
   defp deps do
     [
-      {:ex_waiter, "~> 0.6.0"}
+      {:ex_waiter, "~> 0.6.1"}
     ]
   end
   ```
@@ -71,6 +71,8 @@ defmodule ExWaiter do
      ],
      delay: #Function<...>,
      returning: #Function<...>,
+     on_success: #Function<...>,
+     on_failure: #Function<...>,
      fulfilled?: false,
      checker_fn: #Function<...>,
      num_attempts: 5,

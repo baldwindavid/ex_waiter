@@ -14,7 +14,7 @@ Add the latest release to your `mix.exs` file:
 ```elixir
 defp deps do
   [
-    {:ex_waiter, "~> 0.6.0"}
+    {:ex_waiter, "~> 0.6.1"}
   ]
 end
 ```
@@ -76,6 +76,8 @@ retries are exhausted, an exception will be raised that looks something like:
    ],
    delay: #Function<...>,
    returning: #Function<...>,
+   on_success: #Function<...>,
+   on_failure: #Function<...>,
    fulfilled?: false,
    checker_fn: #Function<...>,
    num_attempts: 5,
@@ -115,7 +117,7 @@ argument being the `%Waiter{}`.
 ## Warning
 
 This library was recently released and the API has not yet fully
-stabilized. Breaking changes may happen between minor versions prior to 1.0.
+stabilized. Breaking changes will occur between minor versions prior to 1.0.
 
 ## Thanks
 

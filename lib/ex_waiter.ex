@@ -9,7 +9,7 @@ defmodule ExWaiter do
   ```elixir
   defp deps do
     [
-      {:ex_waiter, "~> 0.6.1"}
+      {:ex_waiter, "~> 0.6.2"}
     ]
   end
   ```
@@ -98,9 +98,8 @@ defmodule ExWaiter do
     `%Waiter{}` struct at that moment and returns a number of milliseconds to
     delay prior to performing the next attempt. The default is
     `fn waiter -> waiter.attempt_num * 10 end`.
-  * `:returning` - Configures the return value when the condition is met. Takes
-    a function that receives the `%Waiter{}` struct. The default is
-    `fn waiter -> waiter.value end`.
+  * `:returning` - Configures the return value. Takes a function that receives
+    the `%Waiter{}` struct. The default is `fn waiter -> waiter.value end`.
   * `:on_success` - Configures a callback when the condition is met. Takes
     a function that receives the `%Waiter{}` struct. Can be used for logging
     and inspection.
@@ -143,9 +142,9 @@ defmodule ExWaiter do
     `%Waiter{}` struct at that moment and returns a number of milliseconds to
     delay prior to performing the next attempt. The default is
     `fn waiter -> waiter.attempt_num * 10 end`.
-  * `:returning` - Configures the return value when the condition is met. Takes
-    a function that receives the `%Waiter{}` struct. The default is
-    `fn waiter -> waiter.value end`.
+  * `:returning` - Configures the return value. Takes a function that receives
+    the `%Waiter{}` struct. The default is `fn waiter -> waiter.value end`.
+    This will be returned within a tuple of `{:ok, value}` or `{:error, value}`.
   * `:on_success` - Configures a callback when the condition is met. Takes
     a function that receives the `%Waiter{}` struct. Can be used for logging
     and inspection.

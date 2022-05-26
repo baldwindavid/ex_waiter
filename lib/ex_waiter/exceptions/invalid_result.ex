@@ -1,7 +1,12 @@
 defmodule ExWaiter.Exceptions.InvalidResult do
   defexception [:message]
 
+  alias __MODULE__
+
   @impl true
+  # FIXME: I'd rather use %__MODULE__ than need to alias it to reference
+  # @spec exception(%Waiter{}) :: %__MODULE__{}
+  @spec exception(any()) :: %InvalidResult{}
   def exception(result) do
     msg = """
 

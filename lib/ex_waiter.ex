@@ -178,7 +178,7 @@ defmodule ExWaiter do
   ```
   """
 
-  @spec await(Waiter.checker_fn(), [await_options]) ::
+  @spec await(Waiter.checker_fn(), [await_options()]) ::
           {:ok, any()} | {:error, Waiter.t()}
   def await(checker_fn, opts \\ []) do
     case do_await(checker_fn, opts) do
@@ -221,7 +221,7 @@ defmodule ExWaiter do
   end)
   ```
   """
-  @spec await!(Waiter.checker_fn(), [await_options]) :: any()
+  @spec await!(Waiter.checker_fn(), [await_options()]) :: any()
   def await!(checker_fn, opts \\ []) do
     case do_await(checker_fn, opts) do
       {:ok, waiter} -> determine_returning(waiter)
@@ -229,6 +229,7 @@ defmodule ExWaiter do
     end
   end
 
+  @spec do_await(Waiter.checker_fn(), [await_options()]) :: {:ok, any()} | {:error, Waiter.t()}
   defp do_await(checker_fn, opts) do
     Enum.each(opts, fn {key, _} ->
       unless key in @valid_options do
@@ -254,6 +255,8 @@ defmodule ExWaiter do
     |> attempt()
   end
 
+  # FIXME: It seems the second attempt/1 clause cannot be reached.
+  # @spec attempt(%Waiter{}) :: {:ok, %Waiter{}} | {:error, %Waiter{}}
   defp attempt(%Waiter{attempt_num: num, num_attempts: num} = waiter) do
     waiter.on_failure.(waiter)
     {:error, waiter}
@@ -276,22 +279,27 @@ defmodule ExWaiter do
     end
   end
 
+  @spec init_attempt(%Waiter{}) :: %Waiter{}
   defp init_attempt(%Waiter{} = waiter) do
     %{waiter | attempt_num: waiter.attempt_num + 1}
   end
 
+  @spec handle_successful_attempt(%Waiter{}, any(), integer()) :: {:ok, %Waiter{}}
   defp handle_successful_attempt(%Waiter{} = waiter, value, delay) do
     waiter = record_attempt(waiter, true, value, delay)
     waiter.on_success.(waiter)
     {:ok, waiter}
   end
 
+  @spec handle_failed_attempt(%Waiter{}, any(), integer()) ::
+          {:ok, %Waiter{}} | {:error, %Waiter{}}
   defp handle_failed_attempt(%Waiter{} = waiter, value, delay) do
     waiter
     |> record_attempt(false, value, delay)
     |> attempt()
   end
 
+  @spec record_attempt(%Waiter{}, boolean(), any(), integer()) :: %Waiter{}
   defp record_attempt(%Waiter{} = waiter, fulfilled?, value, delay) do
     attempts =
       [
@@ -314,22 +322,37 @@ defmodule ExWaiter do
     }
   end
 
+  # FIXME: This needs to return an integer, but results in this error:
+  #   The variable on line 269 is expected to have type timeout()
+  #   but it has type integer()
+  #     XXX     delay = determine_delay(waiter)
+  #     XXX     Process.sleep(delay)
+  # Since Process.sleep takes a timeout(), gradient seems to expect
+  # us to pass one. But Process.sleep happily takes an integer and
+  # that is the only value I want to allow here.
+  # @spec determine_delay(%Waiter{}) :: integer()
   defp determine_delay(%Waiter{delay: ms}) when is_integer(ms), do: ms
 
   defp determine_delay(%Waiter{delay: delay_fn} = waiter)
        when is_function(delay_fn),
        do: delay_fn.(waiter)
 
+  # FIXME: Error when the return type is set to integer()
+  # Error: lib/ex_waiter.ex: The clause on line XXX cannot be reached
+  # @spec delay_default(%Waiter{}) :: integer()
   defp delay_default(%Waiter{} = waiter) do
     waiter.attempt_num * 10
   end
 
+  @spec determine_returning(%Waiter{}) :: any()
   defp determine_returning(%Waiter{returning: returning_fn} = waiter) do
     returning_fn.(waiter)
   end
 
+  @spec returning_default(%Waiter{}) :: any()
   defp returning_default(%Waiter{value: value}), do: value
 
+  @spec handle_checker_fn(%Waiter{}) :: Waiter.checker_result()
   defp handle_checker_fn(%Waiter{checker_fn: checker_fn} = waiter) do
     case :erlang.fun_info(checker_fn)[:arity] do
       1 -> checker_fn.(waiter)

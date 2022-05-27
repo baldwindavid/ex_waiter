@@ -2,6 +2,7 @@ defmodule ExWaiter.Exceptions.InvalidResult do
   defexception [:message]
 
   @impl true
+  @spec exception(any()) :: %__MODULE__{}
   def exception(result) do
     msg = """
 

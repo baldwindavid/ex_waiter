@@ -322,15 +322,7 @@ defmodule ExWaiter do
     }
   end
 
-  # FIXME: This needs to return an integer, but results in this error:
-  #   The variable on line 269 is expected to have type timeout()
-  #   but it has type integer()
-  #     XXX     delay = determine_delay(waiter)
-  #     XXX     Process.sleep(delay)
-  # Since Process.sleep takes a timeout(), gradient seems to expect
-  # us to pass one. But Process.sleep happily takes an integer and
-  # that is the only value I want to allow here.
-  # @spec determine_delay(%Waiter{}) :: integer()
+  @spec determine_delay(%Waiter{}) :: non_neg_integer()
   defp determine_delay(%Waiter{delay: ms}) when is_integer(ms), do: ms
 
   defp determine_delay(%Waiter{delay: delay_fn} = waiter)

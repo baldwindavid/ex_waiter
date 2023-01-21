@@ -4,8 +4,8 @@ defmodule ExWaiter.MixProject do
   def project do
     [
       app: :ex_waiter,
-      version: "0.6.2",
-      description: "Helper for waiting on asynchronous conditions to be met.",
+      version: "0.7.0",
+      description: "Handy functions for polling and receiving.",
       elixir: "~> 1.10",
       start_permanent: Mix.env() == :prod,
       deps: deps(),

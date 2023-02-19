@@ -66,11 +66,11 @@ defmodule ExWaiter.Polling do
   end
 
   defp attempt(%Poller{} = poller) do
-    poller = %{
+    poller =
       poller
-      | attempt_num: poller.attempt_num + 1,
-        next_delay: nil
-    }
+      |> Map.put(:attempt_num, poller.attempt_num + 1)
+      |> then(&Map.put(&1, :total_delay, calculate_total_delay(&1)))
+      |> Map.put(:next_delay, nil)
 
     case poller.config.polling_fn.(poller) do
       {:ok, value} -> handle_successful_attempt(poller, value)
@@ -111,7 +111,6 @@ defmodule ExWaiter.Polling do
       poller
       |> Map.put(:status, {:error, :attempt_failed})
       |> then(&Map.put(&1, :next_delay, determine_delay(&1)))
-      |> then(&Map.put(&1, :total_delay, calculate_total_delay(&1)))
       |> record_history()
 
     if poller.config.auto_retry do
@@ -138,6 +137,9 @@ defmodule ExWaiter.Polling do
 
     %{poller | history: history}
   end
+
+  defp calculate_total_delay(%Poller{total_delay: total_delay, next_delay: nil}),
+    do: total_delay
 
   defp calculate_total_delay(%Poller{total_delay: total_delay, next_delay: next_delay}),
     do: total_delay + next_delay

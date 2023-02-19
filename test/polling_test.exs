@@ -443,16 +443,24 @@ defmodule ExWaiter.PollingTest do
           record_history: true
         )
 
-      assert {:error, :attempt_failed, %{next_delay: 10} = poller} = ExWaiter.poll(poller)
+      assert {:error, :attempt_failed, %{next_delay: 10, total_delay: 0} = poller} =
+               ExWaiter.poll(poller)
+
       Process.sleep(poller.next_delay)
 
-      assert {:error, :attempt_failed, %{next_delay: 20} = poller} = ExWaiter.poll(poller)
+      assert {:error, :attempt_failed, %{next_delay: 20, total_delay: 10} = poller} =
+               ExWaiter.poll(poller)
+
       Process.sleep(poller.next_delay)
 
-      assert {:error, :attempt_failed, %{next_delay: 30} = poller} = ExWaiter.poll(poller)
+      assert {:error, :attempt_failed, %{next_delay: 30, total_delay: 30} = poller} =
+               ExWaiter.poll(poller)
+
       Process.sleep(poller.next_delay)
 
-      assert {:error, :attempt_failed, %{next_delay: 40} = poller} = ExWaiter.poll(poller)
+      assert {:error, :attempt_failed, %{next_delay: 40, total_delay: 60} = poller} =
+               ExWaiter.poll(poller)
+
       Process.sleep(poller.next_delay)
 
       assert {:ok,
@@ -534,16 +542,16 @@ defmodule ExWaiter.PollingTest do
       end
 
       retry_fn.(poller)
-      {:ok, {:poll, %{next_delay: 10} = poller}} = ExWaiter.receive_next()
+      {:ok, {:poll, %{next_delay: 10, total_delay: 0} = poller}} = ExWaiter.receive_next()
 
       retry_fn.(poller)
-      {:ok, {:poll, %{next_delay: 20} = poller}} = ExWaiter.receive_next()
+      {:ok, {:poll, %{next_delay: 20, total_delay: 10} = poller}} = ExWaiter.receive_next()
 
       retry_fn.(poller)
-      {:ok, {:poll, %{next_delay: 30} = poller}} = ExWaiter.receive_next()
+      {:ok, {:poll, %{next_delay: 30, total_delay: 30} = poller}} = ExWaiter.receive_next()
 
       retry_fn.(poller)
-      {:ok, {:poll, %{next_delay: 40} = poller}} = ExWaiter.receive_next()
+      {:ok, {:poll, %{next_delay: 40, total_delay: 60} = poller}} = ExWaiter.receive_next()
 
       assert {:ok,
               %{

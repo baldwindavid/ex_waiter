@@ -1,9 +1,11 @@
 defmodule ExWaiter.Receiving do
   alias ExWaiter.Receiving.Receiver
 
-  @valid_options [:timeout, :filter, :on_complete]
+  @valid_options [:timeout]
 
-  def receive(num_messages \\ 1, opts) do
+  @spec receive_next(pos_integer(), Receiver.options()) ::
+          {:ok, Receiver.t()} | {:error, Receiver.t()}
+  def receive_next(num_messages \\ 1, opts) when is_integer(num_messages) and num_messages > 0 do
     Enum.each(opts, fn {key, _} ->
       unless key in @valid_options do
         valid_options = @valid_options |> Enum.join(", ")
@@ -11,36 +13,25 @@ defmodule ExWaiter.Receiving do
       end
     end)
 
-    filter_fn = Keyword.get(opts, :filter, fn _message -> true end)
-
-    unless is_function(filter_fn, 1) do
-      raise ":filter must be a function with an arity of 1"
-    end
-
     timeout = Keyword.get(opts, :timeout, 100)
 
     unless is_integer(timeout) || timeout == :infinity do
       raise ":timeout must be either an integer (ms) or :infinity"
     end
 
-    receive_next(%Receiver{
+    do_receive_next(%Receiver{
       message_num: 1,
       timeout: timeout,
       remaining_timeout: timeout,
-      all_messages: [],
-      filtered_messages: [],
-      rejected_messages: [],
-      num_messages: num_messages,
-      filter_fn: filter_fn,
-      on_complete: Keyword.get(opts, :on_complete, & &1)
+      messages: [],
+      num_messages: num_messages
     })
   end
 
-  defp receive_next(
+  defp do_receive_next(
          %Receiver{
            num_messages: num_messages,
            timeout: timeout,
-           filter_fn: filter_fn,
            message_num: message_num
          } = receiver
        ) do
@@ -50,26 +41,17 @@ defmodule ExWaiter.Receiving do
       msg ->
         receiver = set_remaining_timeout(receiver, time_before_receive)
 
-        case {filter_fn.(msg), message_num == num_messages} do
-          {true, true} ->
-            receiver = add_message(receiver, :filtered_messages, msg)
-            receiver.on_complete.(receiver)
-            {:ok, receiver}
-
-          {true, false} ->
-            receiver
-            |> Map.put(:message_num, message_num + 1)
-            |> add_message(:filtered_messages, msg)
-            |> receive_next()
-
-          _ ->
-            receiver
-            |> add_message(:rejected_messages, msg)
-            |> receive_next()
+        if message_num == num_messages do
+          receiver = add_message(receiver, msg)
+          {:ok, receiver}
+        else
+          receiver
+          |> Map.put(:message_num, message_num + 1)
+          |> add_message(msg)
+          |> do_receive_next()
         end
     after
       timeout ->
-        receiver.on_complete.(receiver)
         {:error, receiver}
     end
   end
@@ -82,20 +64,13 @@ defmodule ExWaiter.Receiving do
     %{receiver | remaining_timeout: remaining_timeout}
   end
 
-  defp add_message(%Receiver{} = receiver, message_list, new_message) do
-    receiver
-    |> update_message_list(message_list, new_message)
-    |> update_message_list(:all_messages, new_message)
-  end
-
-  defp update_message_list(%Receiver{} = receiver, message_list, new_message) do
+  defp add_message(%Receiver{} = receiver, new_message) do
     messages =
-      receiver
-      |> Map.get(message_list)
+      receiver.messages
       |> Enum.reverse()
       |> then(&[new_message | &1])
       |> Enum.reverse()
 
-    Map.put(receiver, message_list, messages)
+    Map.put(receiver, :messages, messages)
   end
 end

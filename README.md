@@ -4,8 +4,10 @@
 
 Handy functions for polling and receiving.
 
-- Polling: `poll/2` and `poll!/2` periodically check that a given condition has been met.
-- Receiving: `receive/2` and `receive!/2` return the next message/s from the mailbox within a timeout.
+- Polling: `poll/1` periodically checks that a given
+  condition has been met.
+- Receiving: `receive_next/2` returns the next message/s
+  from the mailbox within a timeout.
 
 Hexdocs found at
 [https://hexdocs.pm/ex_waiter](https://hexdocs.pm/ex_waiter).
@@ -17,7 +19,7 @@ Add the latest release to your `mix.exs` file:
 ```elixir
 defp deps do
   [
-    {:ex_waiter, "~> 0.7.0"}
+    {:ex_waiter, "~> 1.0.0"}
   ]
 end
 ```
@@ -26,8 +28,7 @@ Then run `mix deps.get` in your shell to fetch the dependencies.
 
 ## Warning
 
-This library was recently released and the API has not yet fully
-stabilized. Breaking changes will occur between minor versions prior to 1.0.
+The API for this library has not yet fully stabilized.
 
 ## Thanks
 

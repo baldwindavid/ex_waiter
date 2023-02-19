@@ -1,33 +1,36 @@
 defmodule ExWaiter.Polling.Poller do
   alias ExWaiter.Polling.Attempt
+  alias ExWaiter.Polling.Poller.Config
 
-  @enforce_keys [:polling_fn, :delay]
+  @derive {Inspect,
+           only: [
+             :value,
+             :next_delay,
+             :total_delay,
+             :attempt_num,
+             :history
+           ]}
 
-  @type polling_result :: :ok | :error | {:ok, any()} | {:error, any()}
-  @type polling_fn :: (() -> polling_result()) | (__MODULE__.t() -> polling_result())
-  @type delay :: (__MODULE__.t() -> integer()) | integer()
-  @type num_attempts :: integer() | :infinity
-  @type on_complete :: (__MODULE__.t() -> any())
+  @type status :: :ok | {:error, :attempt_failed} | {:error, :retries_exhausted} | nil
 
-  defstruct([
-    :delay,
-    :polling_fn,
-    :on_complete,
+  @enforce_keys [:config]
+  defstruct [
+    :config,
+    status: nil,
     value: nil,
+    next_delay: nil,
+    history: nil,
     total_delay: 0,
-    num_attempts: 5,
-    attempt_num: 0,
-    attempts: []
-  ])
+    attempt_num: 0
+  ]
 
   @type t :: %__MODULE__{
-          delay: delay(),
-          polling_fn: polling_fn(),
-          on_complete: on_complete(),
+          config: Config.t(),
+          status: status(),
           value: any(),
-          total_delay: integer(),
-          num_attempts: num_attempts(),
-          attempt_num: integer(),
-          attempts: [Attempt.t()]
+          next_delay: non_neg_integer() | nil,
+          total_delay: non_neg_integer(),
+          attempt_num: non_neg_integer(),
+          history: [Attempt.t()] | nil
         }
 end

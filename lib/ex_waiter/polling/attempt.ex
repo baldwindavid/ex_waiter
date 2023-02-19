@@ -1,10 +1,8 @@
 defmodule ExWaiter.Polling.Attempt do
-  @keys [:value, :delay]
-  @enforce_keys @keys
-  defstruct @keys
+  defstruct [:value, :next_delay]
 
   @type t :: %__MODULE__{
           value: any(),
-          delay: integer()
+          next_delay: non_neg_integer() | nil
         }
 end

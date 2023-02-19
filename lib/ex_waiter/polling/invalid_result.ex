@@ -15,14 +15,17 @@ defmodule ExWaiter.Polling.InvalidResult do
     Examples:
 
       Returning a tagged tuple ensures that the Project is returned
-      from poll/2.
+      from poll/1.
 
-      %Project{name: name} = poll(fn ->
+      poller = ExWaiter.new_poller(fn ->
         case Projects.get(1) do
           %Project{} = project -> {:ok, project}
           value -> {:error, value}
         end
       end)
+
+      {:ok, poller} = ExWaiter.poll(poller)
+      %Project{name: name} = poller.value
     """
 
     %__MODULE__{message: msg}

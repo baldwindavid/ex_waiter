@@ -1,6 +1,6 @@
 # ExWaiter
 
-[![CI Status](https://github.com/baldwindavid/ex_waiter/actions/workflows/build-and-test.yml/badge.svg)](https://github.com/baldwindavid/ex_waiter/actions/workflows/build-and-test.yml)
+[![CI Status](https://github.com/baldwindavid/ex_waiter/actions/workflows/ci.yml/badge.svg)](https://github.com/baldwindavid/ex_waiter/actions/workflows/ci.yml)
 
 Handy functions for polling and receiving.
 
@@ -19,7 +19,7 @@ Add the latest release to your `mix.exs` file:
 ```elixir
 defp deps do
   [
-    {:ex_waiter, "~> 1.1.0"}
+    {:ex_waiter, "~> 1.1.1"}
   ]
 end
 ```

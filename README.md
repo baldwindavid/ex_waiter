@@ -19,7 +19,7 @@ Add the latest release to your `mix.exs` file:
 ```elixir
 defp deps do
   [
-    {:ex_waiter, "~> 1.0.1"}
+    {:ex_waiter, "~> 1.1.0"}
   ]
 end
 ```

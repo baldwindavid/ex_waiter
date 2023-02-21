@@ -2,9 +2,9 @@ defmodule ExWaiter do
   @moduledoc """
   Handy functions for polling and receiving.
 
-  - Polling: `poll/1` periodically checks that a given
+  - Polling: `poll/1` and `poll!/1` periodically check that a given
     condition has been met.
-  - Receiving: `receive_next/2` returns the next message/s
+  - Receiving: `receive_next/2` and `receive_next!/2` return the next message/s
     from the mailbox within a timeout.
 
   ## Installation
@@ -14,7 +14,7 @@ defmodule ExWaiter do
   ```elixir
   defp deps do
     [
-      {:ex_waiter, "~> 1.0.1"}
+      {:ex_waiter, "~> 1.1.0"}
     ]
   end
   ```
@@ -26,26 +26,26 @@ defmodule ExWaiter do
   alias ExWaiter.Receiving
 
   @doc """
-  Configures a `Poller` struct to be polled via `poll/1`.
+  Configures a `Poller` struct to be polled via `poll/1` or `poll!/1`.
 
   ## Usage
 
   Takes a function that checks whether the given condition has been met. This
-  function takes 1 argument, which is a `%Poller{}` struct. Returning `{:ok,
-  value}` or `{:error, value}` will ensure that you receive a return "value"
-  from `poll/1`. If the value doesn't matter, `:ok` and `:error` may be returned
-  from the function instead.
+  function optionally takes 1 argument, which is a `%Poller{}` struct. Returning
+  `{:ok, value}` or `{:error, value}` will ensure that you receive a return
+  "value" from `poll/1`. If the value doesn't matter, `:ok` and `:error` may be
+  returned from the function instead.
 
   ## Options
 
   * `:max_attempts` - The number of attempts before retries are exhausted. Takes
-    an integer, `:infinity`, or a function that receives the `%Poller{}` struct
-    just after the condition has been checked for configuring dynamic retries.
-    The function must return `true` to retry or `false` if retries are
-    exhausted. The default is `5`.
+    an integer, `:infinity`, or a function that optionally receives the
+    `%Poller{}` struct just after the condition has been checked for configuring
+    dynamic retries. The function must return `true` to retry or `false` if
+    retries are exhausted. The default is `5`.
   * `:delay` - The delay before retries. Takes either an integer or a function
-    that receives the `%Poller{}` struct just after the condition has been
-    checked allowing for dynamically configured backoff. The default is `fn
+    that optionally receives the `%Poller{}` struct just after the condition has
+    been checked allowing for dynamically configured backoff. The default is `fn
     poller -> poller.attempt_num * 10 end`.
   * `:auto_retry` - Determines whether retries should be automatically
     performed. If `true`, retries will be synchronously performed until either
@@ -56,9 +56,8 @@ defmodule ExWaiter do
     with the returned `%Poller{}`. This allows attempting retries asynchronously
     and/or in another process. The default is `true`.
   * `:record_history` - Enabling the recording of attempt history will provide
-    the tracked value and configured delay. The history is
-    disabled by default to avoid growing too large.
-
+    the tracked value and configured delay. The history is disabled by default
+    to avoid growing too large.
 
   See `poll/1` for usage examples.
   """
@@ -100,12 +99,12 @@ defmodule ExWaiter do
   include the following polling metadata:
 
   ```elixir
-  poller = ExWaiter.new_poller(fn _poller ->
+  poller = ExWaiter.new_poller(fn ->
     case Projects.get(1) do
       %Project{} = project -> {:ok, project}
       _ -> :error
     end
-  end
+  end)
 
   assert {:ok, poller} = ExWaiter.poll(poller)
   assert %{
@@ -120,12 +119,12 @@ defmodule ExWaiter do
   returned.
 
   ```elixir
-  poller = ExWaiter.new_poller(fn _poller ->
+  poller = ExWaiter.new_poller(fn ->
     case Projects.get(1) do
       %Project{} = project -> {:ok, project}
       _ -> :error
     end
-  end
+  end)
 
   assert {:error, :retries_exhausted, poller} = ExWaiter.poll(poller)
   assert %{
@@ -142,7 +141,7 @@ defmodule ExWaiter do
   `max_attempts` can also be set to `:infinity`.
 
   ```elixir
-  poller = ExWaiter.new_poller(fn _poller ->
+  poller = ExWaiter.new_poller(fn ->
     case Projects.get(1) do
       %Project{} = project -> {:ok, project}
       _ -> :error
@@ -154,34 +153,18 @@ defmodule ExWaiter do
   assert {:ok, poller} = ExWaiter.poll(poller)
   ```
 
-  The poller function receives the `Poller` struct. This can be used for
-  customization and logging.
-
-  ```elixir
-  poller = ExWaiter.new_poller(fn poller ->
-    case Projects.get(1) do
-      %Project{} = project -> {:ok, {project, poller.attempt_num}}
-      _ ->
-        Logger.info(inspect(poller))
-        :error
-    end
-  end)
-
-  assert {:ok, {%Project{}, 5}} = ExWaiter.poll(poller)
-  ```
-
   Enabling the recording of history will provide the tracked value and
   configured delay for each attempt. History is disabled by default to avoid
   growing too large.
 
   ```elixir
-  poller = ExWaiter.new_poller(fn _poller ->
+  poller = ExWaiter.new_poller(fn ->
     case Projects.get(1) do
       %Project{} = project -> {:ok, project}
       _ -> {:error, :nope}
     end,
     record_history: true
-  end
+  end)
 
   assert {:ok, poller} = ExWaiter.poll(poller)
   assert %{
@@ -205,14 +188,14 @@ defmodule ExWaiter do
   next configured delay after each attempt.
 
   ```elixir
-  poller = ExWaiter.new_poller(fn _poller ->
+  poller = ExWaiter.new_poller(fn ->
     case Projects.get(1) do
       %Project{} -> :ok
       _ -> :error
     end,
     record_history: true,
     delay: fn poller -> poller.attempt_num * 2 end
-  end
+  end)
 
   assert {:ok, poller} = ExWaiter.poll(poller)
   assert %{
@@ -228,8 +211,9 @@ defmodule ExWaiter do
   ```
 
   Max attempts can also be configured dynamically. Suppose we wanted to
-  continuously retry on Monday, but stop retrying any other day of the week. The
-  function should return `true` to retry or `false` to stop retrying.
+  continuously retry on Monday up to 100 attempts, but stop retrying any other
+  day of the week. The function should return `true` to retry or `false` to stop
+  retrying.
 
   ```elixir
   poller = ExWaiter.new_poller(fn _poller ->
@@ -237,10 +221,12 @@ defmodule ExWaiter do
       %Project{} -> :ok
       _ -> :error
     end,
-    max_attempts: fn _poller ->
-      DateTime.utc_now() |> DateTime.to_date() |> Date.day_of_week() == 1
+    max_attempts: fn poller ->
+      is_monday? = DateTime.utc_now() |> DateTime.to_date() |> Date.day_of_week() == 1
+
+      is_monday? and poller.attempt_num < 100
     end
-  end
+  end)
 
   assert {:ok, poller} = ExWaiter.poll(poller)
   assert %{
@@ -255,7 +241,7 @@ defmodule ExWaiter do
   different process that notifies the caller when finished.
 
   ```elixir
-  poller = ExWaiter.new_poller(fn _poller ->
+  poller = ExWaiter.new_poller(fn ->
     case Projects.get(1) do
       %Project{} = project -> {:ok, project}
       _ -> :error
@@ -271,10 +257,10 @@ defmodule ExWaiter do
   assert poller.next_delay == 10
   Process.send_after(self(), {:retry, poller}, poller.next_delay)
 
-  # Using the `receive_next/2` function built into this package
+  # Using the `receive_next!/2` function built into this package
   # we receive the `{:retry, poller}` message sent via
   # `Process.send_after`.
-  assert {:ok, {:retry, poller}} = ExWaiter.receive_next()
+  assert {:retry, poller} = ExWaiter.receive_next!()
   # We try another attempt that fails, but there are still retries
   # available.
   assert {:error, :attempt_failed, poller} = ExWaiter.poll(poller)
@@ -286,7 +272,7 @@ defmodule ExWaiter do
   # We again receive our scheduled message and kickoff another
   # poll attempt. This time our project is there and we can get
   # it on the returned `Poller` struct in the `value` attribute.
-  assert {:ok, {:retry, poller}} = ExWaiter.receive_next()
+  assert {:retry, poller} = ExWaiter.receive_next!()
   assert {:ok, poller} = ExWaiter.poll(poller)
   assert %{
     attempt_num: 3,
@@ -295,9 +281,47 @@ defmodule ExWaiter do
     value: %Project{}
   } = poller
   ```
+
+  The poller function optionally receives the `Poller` struct. This can be used
+  for customization and logging.
+
+  ```elixir
+  poller = ExWaiter.new_poller(fn poller ->
+    case Projects.get(1) do
+      %Project{} = project -> {:ok, {project, poller.attempt_num}}
+      _ ->
+        Logger.info(inspect(poller))
+        :error
+    end
+  end)
+
+  assert {:ok, {%Project{}, 5}} = ExWaiter.poll(poller)
+  ```
+
   """
   @spec poll(Polling.Poller.t()) :: Polling.poll_result()
   defdelegate poll(poller), to: Polling
+
+  @doc """
+  Periodically checks that a given condition has been met. Raises an exception
+  upon exhausted retries.
+
+  Supports the same options as `poll/1`. However, if the condition has been met,
+  only the `Poller` struct will be returned (i.e. not in an :ok tuple). If
+  retries are exhausted prior to the condition being met, an exception will be
+  raised. Similar to `poll/1`, when auto-retry is disabled and an attempt fails
+  prior to retries being exhausted, an error tuple with `{:error,
+  :attempt_failed, %Poller{}}` will be returned.
+  """
+  @spec poll!(Polling.Poller.t()) ::
+          Polling.Poller.t() | {:error, :attempt_failed, Polling.Poller.t()}
+  def poll!(poller) do
+    case poll(poller) do
+      {:error, :retries_exhausted, poller} -> raise(Polling.RetriesExhausted, poller)
+      {:ok, poller} -> poller
+      {:error, :attempt_failed, _poller} = result -> result
+    end
+  end
 
   @doc """
   Returns the next message/s from the mailbox within a timeout.
@@ -376,6 +400,30 @@ defmodule ExWaiter do
         else
           {:error, receiver.messages}
         end
+    end
+  end
+
+  @doc """
+  Returns the next message/s from the mailbox within a timeout. Raises an
+  exception upon timeout.
+
+  Supports the same options as `receive_next/2`. However, if the mailbox has the
+  right number of messages, only the message/s will be returned (i.e. not in an
+  :ok tuple). If the messages are not received prior to the timeout, an
+  exception will be raised.
+  """
+  @spec receive_next!(pos_integer(), Receiving.Receiver.options()) :: any()
+  def receive_next!(num_messages \\ 1, opts \\ []) do
+    case Receiving.receive_next(num_messages, opts) do
+      {:ok, receiver} ->
+        if receiver.num_messages == 1 do
+          List.first(receiver.messages)
+        else
+          receiver.messages
+        end
+
+      {:error, receiver} ->
+        raise(Receiving.Timeout, receiver)
     end
   end
 end

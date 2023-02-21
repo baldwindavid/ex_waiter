@@ -38,16 +38,17 @@ defmodule ExWaiter.Polling do
     record_history = Keyword.get(opts, :record_history, false)
     delay = Keyword.get(opts, :delay, &(&1.attempt_num * 10))
 
-    unless is_function(delay, 1) or is_integer(delay) do
-      raise ":delay must be either an integer or a function with an arity of 1 (takes the Poller struct)"
+    unless is_integer(delay) or is_function(delay, 0) or is_function(delay, 1) do
+      raise ":delay must be either an integer or a function with an arity of 0 or 1 (can take the Poller struct)"
     end
 
-    unless is_function(polling_fn, 1) do
-      raise "The polling function must have an arity of 1 (takes the Poller struct)"
+    unless is_function(polling_fn, 0) || is_function(polling_fn, 1) do
+      raise "The polling function must have an arity of 0 or 1 (can take the Poller struct)"
     end
 
-    unless is_integer(max_attempts) || max_attempts == :infinity || is_function(max_attempts, 1) do
-      raise ":max_attempts must be either an integer (ms), :infinity, or a function with an arity of 1 (takes the Poller struct)"
+    unless is_integer(max_attempts) || max_attempts == :infinity || is_function(max_attempts, 0) ||
+             is_function(max_attempts, 1) do
+      raise ":max_attempts must be either an integer (ms), :infinity, or a function with an arity of 0 or 1 (can take the Poller struct)"
     end
 
     history = if record_history, do: []
@@ -72,7 +73,7 @@ defmodule ExWaiter.Polling do
       |> then(&Map.put(&1, :total_delay, calculate_total_delay(&1)))
       |> Map.put(:next_delay, nil)
 
-    case poller.config.polling_fn.(poller) do
+    case handle_config_fn(poller, poller.config.polling_fn) do
       {:ok, value} -> handle_successful_attempt(poller, value)
       :ok -> handle_successful_attempt(poller, nil)
       {:error, value} -> handle_failed_attempt(poller, value)
@@ -148,7 +149,7 @@ defmodule ExWaiter.Polling do
 
   defp determine_delay(%Poller{config: %{delay: delay_fn}} = poller)
        when is_function(delay_fn),
-       do: delay_fn.(poller)
+       do: handle_config_fn(poller, delay_fn)
 
   defp retryable?(%Poller{attempt_num: attempt_num, config: %{max_attempts: max_attempts}})
        when is_integer(max_attempts),
@@ -158,10 +159,18 @@ defmodule ExWaiter.Polling do
 
   defp retryable?(%Poller{config: %{max_attempts: max_attempts_fn}} = poller)
        when is_function(max_attempts_fn) do
-    case max_attempts_fn.(poller) do
+    case handle_config_fn(poller, max_attempts_fn) do
       true -> true
       false -> false
       _ -> raise ":max_attempts must return a boolean"
+    end
+  end
+
+  defp handle_config_fn(%Poller{} = poller, config_fn) do
+    case :erlang.fun_info(config_fn)[:arity] do
+      1 -> config_fn.(poller)
+      0 -> config_fn.()
+      _ -> raise "Function must have an arity of either 0 or 1"
     end
   end
 end

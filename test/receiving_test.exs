@@ -1,6 +1,8 @@
 defmodule ExWaiter.ReceivingTest do
   use ExUnit.Case
 
+  alias ExWaiter.Receiving.Timeout
+
   describe "receive_next/2" do
     test "returns a single message by default wrapped in an ok tuple" do
       send(self(), :hello)
@@ -71,6 +73,29 @@ defmodule ExWaiter.ReceivingTest do
           ExWaiter.receive_next(1, hello: :world)
         end
       )
+    end
+  end
+
+  describe "receive_next!/2" do
+    test "returns a single message by default" do
+      send(self(), :hello)
+      send(self(), :hi)
+
+      assert :hello = ExWaiter.receive_next!()
+    end
+
+    test "returns a list of messages when multiple messages are requested" do
+      send(self(), :hello)
+      send(self(), :hi)
+      send(self(), :yo)
+
+      assert [:hello, :hi] = ExWaiter.receive_next!(2)
+    end
+
+    test "raises an exception when a timeout occurs" do
+      Process.send_after(self(), :wont_receive, 50)
+
+      assert_raise(Timeout, fn -> ExWaiter.receive_next!(10) end)
     end
   end
 end

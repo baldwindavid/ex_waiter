@@ -2,6 +2,7 @@ defmodule ExWaiter.PollingTest do
   use ExUnit.Case
 
   alias ExWaiter.Polling.InvalidResult
+  alias ExWaiter.Polling.RetriesExhausted
 
   # We want to simulate a series of queries and stub out the expected
   # values upon each successive attempt. This store takes an ordered list
@@ -32,7 +33,7 @@ defmodule ExWaiter.PollingTest do
       store = OrderedStore.new(attempts)
 
       poller =
-        ExWaiter.new_poller(fn _ ->
+        ExWaiter.new_poller(fn ->
           case OrderedStore.current_value(store) do
             nil -> {:error, nil}
             value -> {:ok, value}
@@ -48,7 +49,7 @@ defmodule ExWaiter.PollingTest do
 
       poller =
         ExWaiter.new_poller(
-          fn _ ->
+          fn ->
             case OrderedStore.current_value(store) do
               nil -> {:error, nil}
               value -> {:ok, value}
@@ -78,7 +79,7 @@ defmodule ExWaiter.PollingTest do
       store = OrderedStore.new(attempts)
 
       poller =
-        ExWaiter.new_poller(fn _ ->
+        ExWaiter.new_poller(fn ->
           case OrderedStore.current_value(store) do
             nil -> :error
             _ -> :ok
@@ -96,7 +97,7 @@ defmodule ExWaiter.PollingTest do
       store = OrderedStore.new(attempts)
 
       poller =
-        ExWaiter.new_poller(fn _ ->
+        ExWaiter.new_poller(fn ->
           case OrderedStore.current_value(store) do
             nil -> :error
             _ -> :ok
@@ -115,7 +116,7 @@ defmodule ExWaiter.PollingTest do
         "hello is not a valid option",
         fn ->
           ExWaiter.new_poller(
-            fn _ -> "doesn't matter" end,
+            fn -> "doesn't matter" end,
             hello: :world
           )
         end
@@ -130,7 +131,7 @@ defmodule ExWaiter.PollingTest do
 
       poller =
         ExWaiter.new_poller(
-          fn _ ->
+          fn ->
             case OrderedStore.current_value(store) do
               nil -> :error
               _ -> :ok
@@ -158,7 +159,36 @@ defmodule ExWaiter.PollingTest do
 
       poller =
         ExWaiter.new_poller(
-          fn _ ->
+          fn ->
+            case OrderedStore.current_value(store) do
+              nil -> :error
+              _ -> :ok
+            end
+          end,
+          record_history: true,
+          delay: fn -> 2 * 2 end
+        )
+
+      assert {:error, :retries_exhausted,
+              %{
+                history: [
+                  %{next_delay: 4},
+                  %{next_delay: 4},
+                  %{next_delay: 4},
+                  %{next_delay: 4},
+                  %{next_delay: nil}
+                ],
+                total_delay: 16
+              }} = ExWaiter.poll(poller)
+    end
+
+    test "can optionally receive the poller as an argument to the delay function" do
+      attempts = [nil, nil, nil, nil, nil]
+      store = OrderedStore.new(attempts)
+
+      poller =
+        ExWaiter.new_poller(
+          fn ->
             case OrderedStore.current_value(store) do
               nil -> :error
               _ -> :ok
@@ -187,7 +217,7 @@ defmodule ExWaiter.PollingTest do
 
       poller =
         ExWaiter.new_poller(
-          fn _ ->
+          fn ->
             case OrderedStore.current_value(store) do
               nil -> :error
               _ -> :ok
@@ -210,14 +240,12 @@ defmodule ExWaiter.PollingTest do
               }} = ExWaiter.poll(poller)
     end
 
-    test "raises an exception with an invalid delay function" do
+    test "raises an exception with an invalid delay configuration" do
       assert_raise(
         RuntimeError,
-        ":delay must be either an integer or a function with an arity of 1 (takes the Poller struct)",
+        ":delay must be either an integer or a function with an arity of 0 or 1 (can take the Poller struct)",
         fn ->
-          ExWaiter.new_poller(fn _ -> "doesn't matter" end,
-            delay: fn -> "doesn't matter" end
-          )
+          ExWaiter.new_poller(fn -> "doesn't matter" end, delay: "doesn't matter")
         end
       )
     end
@@ -230,7 +258,7 @@ defmodule ExWaiter.PollingTest do
 
       poller =
         ExWaiter.new_poller(
-          fn _ ->
+          fn ->
             case OrderedStore.current_value(store) do
               nil -> :error
               _ -> :ok
@@ -251,7 +279,7 @@ defmodule ExWaiter.PollingTest do
 
       poller =
         ExWaiter.new_poller(
-          fn _ ->
+          fn ->
             case OrderedStore.current_value(store) do
               nil -> :error
               _ -> :ok
@@ -267,12 +295,33 @@ defmodule ExWaiter.PollingTest do
     end
 
     test "can take a max attempts configuration function" do
+      attempts = [nil]
+      store = OrderedStore.new(attempts)
+
+      poller =
+        ExWaiter.new_poller(
+          fn ->
+            case OrderedStore.current_value(store) do
+              nil -> :error
+              _ -> :ok
+            end
+          end,
+          max_attempts: fn -> false end
+        )
+
+      assert {:error, :retries_exhausted,
+              %{
+                attempt_num: 1
+              }} = ExWaiter.poll(poller)
+    end
+
+    test "can optionally receive the poller as an argument to the max attempts function" do
       attempts = [3, 2, 9, 7, 10, 4, 12]
       store = OrderedStore.new(attempts)
 
       poller =
         ExWaiter.new_poller(
-          fn _ ->
+          fn ->
             case OrderedStore.current_value(store) do
               4 -> {:ok, 4}
               value -> {:error, value}
@@ -292,10 +341,10 @@ defmodule ExWaiter.PollingTest do
     test "raises an exception with an invalid number of attempts" do
       assert_raise(
         RuntimeError,
-        ":max_attempts must be either an integer (ms), :infinity, or a function with an arity of 1 (takes the Poller struct)",
+        ":max_attempts must be either an integer (ms), :infinity, or a function with an arity of 0 or 1 (can take the Poller struct)",
         fn ->
           ExWaiter.new_poller(
-            fn _ -> "doesn't matter" end,
+            fn -> "doesn't matter" end,
             max_attempts: :invalid_stuff
           )
         end
@@ -309,7 +358,7 @@ defmodule ExWaiter.PollingTest do
       store = OrderedStore.new(attempts)
 
       poller =
-        ExWaiter.new_poller(fn _ ->
+        ExWaiter.new_poller(fn ->
           case OrderedStore.current_value(store) do
             nil -> :error
             _ -> :ok
@@ -319,7 +368,7 @@ defmodule ExWaiter.PollingTest do
       assert {:ok, %{value: nil}} = ExWaiter.poll(poller)
     end
 
-    test "takes the Poller struct as an argument" do
+    test "can optionally take the Poller struct as an argument" do
       attempts = [nil, "first", "second", "third"]
       store = OrderedStore.new(attempts)
 
@@ -357,9 +406,9 @@ defmodule ExWaiter.PollingTest do
     test "raises an exception with an invalid polling function" do
       assert_raise(
         RuntimeError,
-        "The polling function must have an arity of 1 (takes the Poller struct)",
+        "The polling function must have an arity of 0 or 1 (can take the Poller struct)",
         fn ->
-          ExWaiter.new_poller(fn -> "doesn't matter" end)
+          ExWaiter.new_poller("doesn't matter")
         end
       )
     end
@@ -367,7 +416,7 @@ defmodule ExWaiter.PollingTest do
     test "raises an exception with an invalid result" do
       Enum.each(["yep", "nope", nil], fn value ->
         assert_raise(InvalidResult, fn ->
-          ExWaiter.new_poller(fn _ -> value end)
+          ExWaiter.new_poller(fn -> value end)
           |> ExWaiter.poll()
         end)
       end)
@@ -381,7 +430,7 @@ defmodule ExWaiter.PollingTest do
 
       poller =
         ExWaiter.new_poller(
-          fn _ ->
+          fn ->
             case OrderedStore.current_value(store) do
               nil -> {:error, nil}
               value -> {:ok, value}
@@ -406,7 +455,7 @@ defmodule ExWaiter.PollingTest do
 
       poller =
         ExWaiter.new_poller(
-          fn _ ->
+          fn ->
             case OrderedStore.current_value(store) do
               nil -> {:error, nil}
               value -> {:ok, value}
@@ -433,7 +482,7 @@ defmodule ExWaiter.PollingTest do
 
       poller =
         ExWaiter.new_poller(
-          fn _ ->
+          fn ->
             case OrderedStore.current_value(store) do
               nil -> :error
               value -> {:ok, value}
@@ -485,7 +534,7 @@ defmodule ExWaiter.PollingTest do
 
       poller =
         ExWaiter.new_poller(
-          fn _ ->
+          fn ->
             case OrderedStore.current_value(store) do
               nil -> :error
               value -> {:ok, value}
@@ -494,17 +543,10 @@ defmodule ExWaiter.PollingTest do
           auto_retry: false
         )
 
-      assert {:error, :attempt_failed, poller} = ExWaiter.poll(poller)
-      Process.sleep(poller.next_delay)
-
-      assert {:error, :attempt_failed, poller} = ExWaiter.poll(poller)
-      Process.sleep(poller.next_delay)
-
-      assert {:error, :attempt_failed, poller} = ExWaiter.poll(poller)
-      Process.sleep(poller.next_delay)
-
-      assert {:error, :attempt_failed, poller} = ExWaiter.poll(poller)
-      Process.sleep(poller.next_delay)
+      assert {:error, :attempt_failed, %{attempt_num: 1} = poller} = ExWaiter.poll(poller)
+      assert {:error, :attempt_failed, %{attempt_num: 2} = poller} = ExWaiter.poll(poller)
+      assert {:error, :attempt_failed, %{attempt_num: 3} = poller} = ExWaiter.poll(poller)
+      assert {:error, :attempt_failed, %{attempt_num: 4} = poller} = ExWaiter.poll(poller)
 
       assert {:error, :retries_exhausted,
               %{
@@ -520,7 +562,7 @@ defmodule ExWaiter.PollingTest do
 
       poller =
         ExWaiter.new_poller(
-          fn _ ->
+          fn ->
             case OrderedStore.current_value(store) do
               nil -> :error
               value -> {:ok, value}
@@ -530,28 +572,21 @@ defmodule ExWaiter.PollingTest do
           record_history: true
         )
 
-      retry_fn = fn poller ->
-        ExWaiter.poll(poller)
-        |> case do
-          {:error, :attempt_failed, poller} ->
-            Process.send_after(self(), {:poll, poller}, poller.next_delay)
+      assert {:error, :attempt_failed, poller} = ExWaiter.poll(poller)
+      Process.send_after(self(), {:retry, poller}, poller.next_delay)
+      {:retry, %{next_delay: 10, total_delay: 0} = poller} = ExWaiter.receive_next!()
 
-          msg ->
-            msg
-        end
-      end
+      assert {:error, :attempt_failed, poller} = ExWaiter.poll(poller)
+      Process.send_after(self(), {:retry, poller}, poller.next_delay)
+      {:retry, %{next_delay: 20, total_delay: 10} = poller} = ExWaiter.receive_next!()
 
-      retry_fn.(poller)
-      {:ok, {:poll, %{next_delay: 10, total_delay: 0} = poller}} = ExWaiter.receive_next()
+      assert {:error, :attempt_failed, poller} = ExWaiter.poll(poller)
+      Process.send_after(self(), {:retry, poller}, poller.next_delay)
+      {:retry, %{next_delay: 30, total_delay: 30} = poller} = ExWaiter.receive_next!()
 
-      retry_fn.(poller)
-      {:ok, {:poll, %{next_delay: 20, total_delay: 10} = poller}} = ExWaiter.receive_next()
-
-      retry_fn.(poller)
-      {:ok, {:poll, %{next_delay: 30, total_delay: 30} = poller}} = ExWaiter.receive_next()
-
-      retry_fn.(poller)
-      {:ok, {:poll, %{next_delay: 40, total_delay: 60} = poller}} = ExWaiter.receive_next()
+      assert {:error, :attempt_failed, poller} = ExWaiter.poll(poller)
+      Process.send_after(self(), {:retry, poller}, poller.next_delay)
+      {:retry, %{next_delay: 40, total_delay: 60} = poller} = ExWaiter.receive_next!()
 
       assert {:ok,
               %{
@@ -566,7 +601,7 @@ defmodule ExWaiter.PollingTest do
                 total_delay: 100,
                 next_delay: nil,
                 value: "Got it!"
-              }} = retry_fn.(poller)
+              }} = ExWaiter.poll(poller)
     end
   end
 
@@ -604,7 +639,7 @@ defmodule ExWaiter.PollingTest do
 
       poller =
         ExWaiter.new_poller(
-          fn _ ->
+          fn ->
             case OrderedStore.current_value(store) do
               nil -> :error
               value -> {:ok, value}
@@ -616,7 +651,6 @@ defmodule ExWaiter.PollingTest do
 
       {:ok, retry_server} = GenServer.start_link(RetryServer, [])
       :ok = GenServer.call(retry_server, {:start_polling, poller})
-      {:ok, result} = ExWaiter.receive_next(1, timeout: 200)
 
       assert {:ok,
               %{
@@ -631,7 +665,67 @@ defmodule ExWaiter.PollingTest do
                 total_delay: 100,
                 next_delay: nil,
                 value: "Got it!"
-              }} = result
+              }} = ExWaiter.receive_next!(1, timeout: 200)
+    end
+  end
+
+  describe "poll!/2" do
+    test "waits for a result and returns the value" do
+      attempts = [nil, nil, nil, nil, "Got it!"]
+      store = OrderedStore.new(attempts)
+
+      poller =
+        ExWaiter.new_poller(fn ->
+          case OrderedStore.current_value(store) do
+            nil ->
+              :error
+
+            value ->
+              {:ok, value}
+          end
+        end)
+
+      assert %{value: "Got it!"} = ExWaiter.poll!(poller)
+    end
+
+    test "when auto-retry is disabled returns attempt failed error tuple until success" do
+      attempts = [nil, nil, nil, nil, "Got it!"]
+      store = OrderedStore.new(attempts)
+
+      poller =
+        ExWaiter.new_poller(
+          fn ->
+            case OrderedStore.current_value(store) do
+              nil ->
+                :error
+
+              value ->
+                {:ok, value}
+            end
+          end,
+          auto_retry: false
+        )
+
+      assert {:error, :attempt_failed, %{attempt_num: 1} = poller} = ExWaiter.poll!(poller)
+      assert {:error, :attempt_failed, %{attempt_num: 2} = poller} = ExWaiter.poll!(poller)
+      assert {:error, :attempt_failed, %{attempt_num: 3} = poller} = ExWaiter.poll!(poller)
+      assert {:error, :attempt_failed, %{attempt_num: 4} = poller} = ExWaiter.poll!(poller)
+      assert %{attempt_num: 5, value: "Got it!"} = ExWaiter.poll!(poller)
+    end
+
+    test "throws an exception when retries are exhausted" do
+      attempts = [nil, nil, nil, nil, nil]
+      store = OrderedStore.new(attempts)
+
+      assert_raise(RetriesExhausted, fn ->
+        ExWaiter.new_poller(fn ->
+          case OrderedStore.current_value(store) do
+            nil -> :error
+            _ -> :ok
+          end
+        end)
+        |> ExWaiter.poll!()
+      end)
     end
   end
 end

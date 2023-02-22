@@ -6,8 +6,8 @@ defmodule ExWaiter.Polling.InvalidResult do
     msg = """
 
     Expected:
-    {:ok, value} or :ok for success
-    {:error, value} or :error for failure
+    {:ok, value}, :ok, or true for success
+    {:error, value}, :error, or false for failure
 
     Got:
     #{inspect(result)}

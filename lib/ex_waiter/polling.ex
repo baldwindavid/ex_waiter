@@ -71,8 +71,10 @@ defmodule ExWaiter.Polling do
     case handle_config_fn(poller, poller.config.polling_fn) do
       {:ok, value} -> handle_successful_attempt(poller, value)
       :ok -> handle_successful_attempt(poller, nil)
+      true -> handle_successful_attempt(poller, nil)
       {:error, value} -> handle_failed_attempt(poller, value)
       :error -> handle_failed_attempt(poller, nil)
+      false -> handle_failed_attempt(poller, nil)
       result -> raise InvalidResult, result
     end
   end

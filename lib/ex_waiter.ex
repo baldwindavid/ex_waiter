@@ -14,7 +14,7 @@ defmodule ExWaiter do
   ```elixir
   defp deps do
     [
-      {:ex_waiter, "~> 1.2.0"}
+      {:ex_waiter, "~> 1.2.1"}
     ]
   end
   ```
@@ -35,7 +35,8 @@ defmodule ExWaiter do
   function optionally takes 1 argument, which is the current `Poller` struct.
   Returning `{:ok, value}` or `{:error, value}` ensures that a "value" is set on
   the `Poller` struct that is returned after polling. If the value doesn't
-  matter, `:ok` and `:error` may be returned from the function instead.
+  matter, any of `:ok`, `:error`, `true`, and `false` may be returned from the
+  function instead.
 
   Create a poller and record the history of each attempt. By default, up to 5
   attempts will be made with a backoff delay totaling 100ms.
@@ -85,10 +86,10 @@ defmodule ExWaiter do
   ## Options
 
   * `:max_attempts` - The number of attempts before retries are exhausted. Takes
-    an integer, `:infinity`, or a function that optionally receives the
-    `Poller` struct just after the condition has been checked for configuring
-    dynamic retries. The function must return `true` to retry or `false` if
-    retries are exhausted. The default is `5`.
+    an integer, `:infinity`, or a function that optionally receives the `Poller`
+    struct just after the condition has been checked for configuring dynamic
+    retries. The function must return `true` to retry or `false` if retries are
+    exhausted. The default is `5`.
   * `:delay` - The delay before retries. Takes either an integer or a function
     that optionally receives the `Poller` struct just after the condition has
     been checked allowing for dynamically configured backoff. The default is `fn

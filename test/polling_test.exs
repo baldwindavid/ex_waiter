@@ -391,6 +391,21 @@ defmodule ExWaiter.PollingTest do
       assert {:ok, %{value: nil}} = ExWaiter.poll(poller)
     end
 
+    test "supports boolean return values, but with no value tracking" do
+      attempts = [nil, nil, nil, nil, "Got it!"]
+      store = OrderedStore.new(attempts)
+
+      poller =
+        ExWaiter.new_poller(fn ->
+          case OrderedStore.current_value(store) do
+            nil -> false
+            _ -> true
+          end
+        end)
+
+      assert {:ok, %{value: nil}} = ExWaiter.poll(poller)
+    end
+
     test "can optionally take the Poller struct as an argument" do
       attempts = [nil, "first", "second", "third"]
       store = OrderedStore.new(attempts)

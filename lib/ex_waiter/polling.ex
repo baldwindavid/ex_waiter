@@ -4,7 +4,7 @@ defmodule ExWaiter.Polling do
   alias ExWaiter.Polling.Poller
   alias ExWaiter.Polling.Poller.Config
 
-  @valid_options [:delay, :max_attempts, :auto_retry, :record_history]
+  @valid_options [:delay, :max_attempts, :record_history]
 
   @type poll_result ::
           {:ok, Poller.t()}
@@ -13,17 +13,8 @@ defmodule ExWaiter.Polling do
   @type options :: [
           {:delay, Config.delay()}
           | {:max_attempts, Config.max_attempts()}
-          | {:auto_retry, boolean()}
           | {:record_history, boolean()}
         ]
-
-  @spec poll(Poller.t()) :: poll_result()
-  def poll(%Poller{status: :ok} = poller), do: {:ok, poller}
-
-  def poll(%Poller{status: {:error, :retries_exhausted}} = poller),
-    do: {:error, :retries_exhausted, poller}
-
-  def poll(%Poller{} = poller), do: attempt(poller)
 
   @spec new_poller(Poller.Config.polling_fn(), options()) :: Poller.t()
   def new_poller(polling_fn, opts) do
@@ -34,7 +25,6 @@ defmodule ExWaiter.Polling do
     end)
 
     max_attempts = Keyword.get(opts, :max_attempts, 5)
-    auto_retry = Keyword.get(opts, :auto_retry, true)
     record_history = Keyword.get(opts, :record_history, false)
     delay = Keyword.get(opts, :delay, &(&1.attempt_num * 10))
 
@@ -58,7 +48,6 @@ defmodule ExWaiter.Polling do
         polling_fn: polling_fn,
         delay: delay,
         max_attempts: max_attempts,
-        auto_retry: auto_retry,
         record_history: record_history
       },
       attempt_num: 0,
@@ -66,7 +55,13 @@ defmodule ExWaiter.Polling do
     }
   end
 
-  defp attempt(%Poller{} = poller) do
+  @spec poll_once(Poller.t()) :: poll_result()
+  def poll_once(%Poller{status: :ok} = poller), do: {:ok, poller}
+
+  def poll_once(%Poller{status: {:error, :retries_exhausted}} = poller),
+    do: {:error, :retries_exhausted, poller}
+
+  def poll_once(%Poller{} = poller) do
     poller =
       poller
       |> Map.put(:attempt_num, poller.attempt_num + 1)
@@ -114,12 +109,7 @@ defmodule ExWaiter.Polling do
       |> then(&Map.put(&1, :next_delay, determine_delay(&1)))
       |> record_history()
 
-    if poller.config.auto_retry do
-      Process.sleep(poller.next_delay)
-      attempt(poller)
-    else
-      {:error, :attempt_failed, poller}
-    end
+    {:error, :attempt_failed, poller}
   end
 
   defp record_history(%Poller{config: %{record_history: false}} = poller), do: poller

@@ -8,7 +8,6 @@ defmodule ExWaiter.Polling.Poller.Config do
     :polling_fn,
     :delay,
     :max_attempts,
-    auto_retry: true,
     record_history: false
   ]
 
@@ -16,7 +15,6 @@ defmodule ExWaiter.Polling.Poller.Config do
           polling_fn: polling_fn(),
           delay: delay(),
           max_attempts: max_attempts(),
-          auto_retry: boolean(),
           record_history: boolean()
         }
 end

@@ -15,7 +15,7 @@ defmodule ExWaiter do
   ```elixir
   defp deps do
     [
-      {:ex_waiter, "~> 1.3.0"}
+      {:ex_waiter, "~> 1.3.1"}
     ]
   end
   ```

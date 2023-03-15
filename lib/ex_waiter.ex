@@ -197,7 +197,7 @@ defmodule ExWaiter do
 
   The default `refill_rate` is 1, but this configurable. This is the number of
   tokens to refill in the bucket per "interval" that has passed since the last
-  request.
+  refill.
 
   ```elixir
   opts = [refill_rate: 3]
